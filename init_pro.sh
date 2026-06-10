@@ -1,88 +1,100 @@
 #!/usr/bin/env bash
-
 # ==============================================================================
-# 🚀 PRO-SPEC UBUNTU SYSTEM INITIALIZATION (v3.1 - FINAL ROBUST EDITION)
+# 🚀 ENTERPRISE UBUNTU INITIALIZATION SUITE (THE PRO-SPEC ORCHESTRATOR)
+# Path: ./init_pro.sh
 # ==============================================================================
-# Logic: 
-#   1. Priviledge Check
-#   2. Overwrites a MANAGED alias file (~/.bash_aliases_pro) to prevent duplicates.
-#   3. Stitches that file into the main ~/.bashrc managed by your Git repo.
-#   4. Uses official Docker repos and merges all tools from your files.
-# ==============================================================================
+set -Eeuo pipefail
+trap 'failure_handler $? $LINENO' ERR
 
-# ------------------------------------------------------------------------------
-# FAULT HANDLING & TELEMETRY CONFIGURATION
-# ------------------------------------------------------------------------------
-
-set -o pipefail
-
-# --- LOGGING UTILITIES ---
+# Diagnostics and Logging Framework
 log_info() { echo -e "\n\e[1;34m[INFO]\e[0m \e[1;36m▶ $1\e[0m"; }
 log_success() { echo -e "\e[1;32m[SUCCESS] ✔ $1\e[0m"; }
-log_warn() { echo -e "\e[1;33m[WARNING] ⚠️  $1\e[0m"; }
+log_warn() { echo -e "\e[1;33m[WARNING] ⚠️ $1\e[0m"; }
 log_error() { echo -e "\e[1;31m[ERROR] ❌ $1\e[0m"; }
 
-# --- FAULT HANDLING ---
-failure_trap() {
-    local exit_code=$?
-    log_error "CRITICAL INTERRUPT: Execution failed at line $1 with Exit Code: ${exit_code}"
+failure_handler() {
+    local exit_code=$1
+    local line_no=$2
+    log_error "Critical system failure captured inside initialization timeline (Line: ${line_no} | Exit Status: ${exit_code})"
     exit "${exit_code}"
 }
-trap 'failure_trap ${LINENO}' ERR
 
-export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
-
-echo -e "\e[1;35m========================================================================\e[0m"
-echo -e "\e[1;32m🌟 INITIALIZING PROFESSIONAL LINUX SPECIFICATION SUITE v2.5...\e[0m"
-echo -e "\e[1;35m========================================================================\e[0m"
-
-
-
-
-# ------------------------------------------------------------------------------
-# PRIVILEGE CHECK & ELEVATION LOOP
-# ------------------------------------------------------------------------------
+# Gatekeeper: Ensure execution happens under root validation loops
 if [ "$EUID" -ne 0 ]; then
-    echo -e "\e[1;35m==================================================\e[0m"
-    echo -e "\e[1;32m   Privilege Elevation Required for Suite Logic   \e[0m"
-    echo -e "\e[1;35m==================================================\e[0m"
-    echo "1. Enter sudo password to apply changes"
-    echo "2. Exit - No changes will be made"
-    echo "--------------------------------------------------"
-    read -p "Select an option (1 or 2): " CHOICE
+   log_error "This suite requires elevated administrative orchestration privileges. Re-run execution leveraging 'sudo ./init_pro.sh'"
+   exit 1
+fi
 
-    case "$CHOICE" in
-        1)
-            log_info "Requesting sudo elevation..."
-            # Re-execute script as root, preserving environment
-            exec sudo "$0" "$@"
-            ;;
-        2|*)
-            log_warn "User aborted elevation. Exiting."
-            exit 0
-            ;;
-    esac
+# Identify calling non-root user variables dynamically
+TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_HOME=$(eval echo "~$TARGET_USER")
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+log_info "Bootstrapping Modular Provisioning Framework for System User: ${TARGET_USER}"
+
+# Ensure interactive dialog boxes are present natively
+if ! command -v whiptail &>/dev/null; then
+    log_warn "Whiptail UI engine missing. Initializing runtime package manager dependency hooks..."
+    apt-get update && apt-get install -y whiptail
 fi
 
 # ------------------------------------------------------------------------------
-# 2. MODULAR EXECUTION (EUID IS 0)
+# STEP 1: INTERACTIVE SELECTION DIALOG (Whiptail TUI Verification)
 # ------------------------------------------------------------------------------
-log_info "Authenticated as root. Commencing Modular Suite Deployment..."
+CHOICE=$(whiptail --title "Ubuntu Pro-Spec Architecture Deployment" \
+--menu "Choose your desired machine targeting profiles:" 15 60 4 \
+"1" "Full Suite Installation (All Modules + System Upgrades)" \
+"2" "Environment Configuration Re-Compile (Stitch Only)" \
+"3" "Abort Routine Initialization" 3>&1 1>&2 2>&3)
 
-# Verify the scripts directory exists before looping
-if [ ! -d "scripts" ]; then
-    log_error "Directory 'scripts/' not found. Ensure you are in the repo root."
-    exit 1
-fi
+case "$CHOICE" in
+    1)
+        log_info "Beginning system configuration profiling baseline matrix..."
+        ;;
+    2)
+        log_info "Isolating framework layers. Executing configuration tree compilers..."
+        sudo -u "$TARGET_USER" bash "$BASE_DIR/scripts/05_stitch.sh"
+        log_success "Profile compilation complete. Session operations resolved successfully."
+        exit 0
+        ;;
+    *)
+        log_warn "Installation procedure abandoned gracefully by user interface."
+        exit 0
+        ;;
+esac
 
-# Iterate over all .sh files in alphabetical/numerical order [3, 4]
-for script in scripts/*.sh; do
-    if [ -f "$script" ]; then
-        log_info "Executing Module: $script"
-        # Run with bash to ensure sub-scripts execute in a clean environment
-        bash "$script" || exit 1
+# ------------------------------------------------------------------------------
+# STEP 2: DETERMINISTIC LOOP ITERATION OVER MODULAR COMPONENT SCRIPTS
+# ------------------------------------------------------------------------------
+# Iterate through scripts cleanly by alphanumeric index markers
+MODULES=(
+    "01_privileges.sh"
+    "02_environment.sh"
+    "03_tools.sh"
+    "04_optimization.sh"
+    "05_stitch.sh"
+)
+
+for script in "${MODULES[@]}"; do
+    SCRIPT_PATH="$BASE_DIR/scripts/$script"
+    if [ -f "$SCRIPT_PATH" ]; then
+        log_info "Executing Modular Module Task: [ $script ]"
+        chmod +x "$SCRIPT_PATH"
+        
+        # Execute orchestration hooks keeping target execution ownership pristine
+        if [ "$script" == "05_stitch.sh" ]; then
+            sudo -u "$TARGET_USER" bash "$SCRIPT_PATH"
+        else
+            bash "$SCRIPT_PATH"
+        fi
+        log_success "Task Verification Standard Complete: [ $script ]"
+    else
+        log_warn "Expected optimization payload not found at target directory mapping: $script"
     fi
 done
 
-
+echo -e "\n\e[1;32m========================================================================\e[0m"
+log_success "PRO-SPEC INITIALIZATION COMPILATION TRACEWAY STACK COMPLETE"
+echo -e "\e[1;32m========================================================================\e[0m"
+log_warn "NOTICE: Source the updated interface profile mapping to inherit environmental context variables:"
+echo -e "         \e[1;37msource ~/.bashrc\e[0m\n"

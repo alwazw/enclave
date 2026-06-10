@@ -1,81 +1,62 @@
-# 05_stitch.sh - Modular Sync & Alias Management
-MANAGED_ALIASES="$HOME/.bash_aliases_pro"
-LOCAL_ALIASES="$HOME/.bash_aliases_local" # For aliases not yet in the repo
-REPO_DIR="$HOME/Ubuntu-Pro-Suite"
+#!/usr/bin/env bash
+# ==============================================================================
+# 🚀 ARCHITECTURE COMPILER & ENVIRONMENT STITCHER (v4.0)
+# Path: scripts/05_stitch.sh
+# ==============================================================================
+set -Eeuo pipefail
 
-cat << 'INNER_EOF' > "$MANAGED_ALIASES"
-### --- PATHS ---
-export PATH="$HOME/.local/bin:$PATH"
+SYNCHED_ALIASES="$HOME/.bash_aliases_pro"
+DATA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-### --- FUNCTIONS ---
+log_info() { echo -e "\e[1;34m[COMPILER]\e[0m \e[1;36m▶ $1\e[0m"; }
+log_success() { echo -e "\e[1;32m[SUCCESS] ✔ $1\e[0m"; }
 
-# 1. Modular Sync Function
-repo_sync() {
-    if [ -d "$REPO_DIR" ]; then
-        echo "🔄 Syncing Universal Repo & Templates..."
-        git -C "$REPO_DIR" pull
-        
-        # CI/DI Template Sync Check
-        for template in .env.template .secrets.template; do
-            if [ -f "$REPO_DIR/$template" ] && [ -f "$HOME/${template%.template}" ]; then
-                if ! cmp -s "$HOME/${template%.template}" "$REPO_DIR/$template" 2>/dev/null; then
-                    echo "⚠️  NOTICE: $template has changed. Review your local config."
-                fi
-            fi
-        done
-    else
-        echo "❌ Repo directory not found at $REPO_DIR"
-    fi
-}
+log_info "Initializing compilation sequence..."
 
-# 2. Local Push/Contribution Logic
-# Identifies aliases in .bash_aliases_local that are missing from the Managed Suite
-alias_audit() {
-    echo "🔍 Auditing local vs. managed aliases..."
-    if [ -f "$LOCAL_ALIASES" ]; then
-        # Finds aliases in local file not present in managed file
-        comm -23 <(grep "^alias " "$LOCAL_ALIASES" | sort) \
-                 <(grep "^alias " "$MANAGED_ALIASES" | sort) > /tmp/missing_aliases
-        
-        if [ -s /tmp/missing_aliases ]; then
-            echo "💡 New local aliases detected:"
-            cat /tmp/missing_aliases
-            read -p "Push these changes to the Universal Repo? (y/n): " PUSH_CHOICE
-            if [[ "$PUSH_CHOICE" == "y" ]]; then
-                echo "🚀 Preparing commit to $REPO_DIR..."
-                # Logic to append to repo source file and git push would go here
-            fi
-        else
-            echo "✅ All local aliases are already in the Managed Suite."
-        fi
-    fi
-}
+# 1. Establish fresh, untainted active runtime file
+cat << EOF > "$SYNCHED_ALIASES"
+# ==============================================================================
+# 🛠️ SYNCHED AUTOMATED DESKTOP PROFILE (DYNAMICALLY COMPILED - DO NOT EDIT)
+# Engine Matrix Version: 2026.4
+# Generated: $(date)
+# Source Core: $DATA_DIR
+# ==============================================================================
+EOF
 
-# 3. Enhanced Update Function
-sys_update() {
-    repo_sync        # Invoke modular sync [Question 1]
-    alias_audit      # Identify local changes [Question 4]
+# 2. Parse and Compile structural data mappings (aliases.env)
+if [ -f "$DATA_DIR/aliases.env" ]; then
+    log_info "Processing shortcuts database [aliases.env]..."
+    echo -e "\n# --- HARDCODED RUNTIME TRANSLATIONS ---" >> "$SYNCHED_ALIASES"
     
-    echo "📦 System Update..."
-    sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
-}
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # Sanitize whitespace, skip declarations, empty vectors, or raw annotations
+        key=$(echo "$key" | xargs 2>/dev/null || echo "$key")
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        
+        # Strip string-literal quotes cleanly
+        clean_value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+        echo "alias ${key}='${clean_value}'" >> "$SYNCHED_ALIASES"
+    done < "$DATA_DIR/aliases.env"
+fi
 
-### --- DYNAMIC CHEATS ---
-cheats() {
-    echo -e "\e[1;35m--- 💡 DYNAMIC PRO-SPEC CHEATSHEET ---\e[0m"
-    grep -E '^### ----|alias ' "$MANAGED_ALIASES" "$LOCAL_ALIASES" 2>/dev/null | \
-    sed -e 's/alias //g' -e "s/='/: /g" -e "s/'//g"
-}
+# 3. Concatenate and Inject Core System Operational Scripts (functions.env)
+if [ -f "$DATA_DIR/functions.env" ]; then
+    log_info "Injecting custom binary functional scopes [functions.env]..."
+    echo -e "\n# --- INTEGRATED ORCHESTRATION FUNCTIONS ---" >> "$SYNCHED_ALIASES"
+    cat "$DATA_DIR/functions.env" >> "$SYNCHED_ALIASES"
+fi
 
-### --- ALIASES ---
-alias update='sys_update'
-alias dps='docker ps -a'
-alias ..='cd ..'
+# 4. Bind compiled asset upstream matrix securely inside local machine profiles
+if ! grep -q "source $SYNCHED_ALIASES" "$HOME/.bashrc"; then
+    log_info "Stitching local manifest references within home shell profile..."
+    cat << EOF >> "$HOME/.bashrc"
 
-# Auto-source local overrides if they exist [Question 3]
-[ -f "$LOCAL_ALIASES" ] && source "$LOCAL_ALIASES"
-INNER_EOF
+# --- SYNCED MANIFESTATION ORCHESTRATION LAYER ---
+if [ -f "$SYNCHED_ALIASES" ]; then
+    source "$SYNCHED_ALIASES"
+fi
+EOF
+fi
 
-# Link to .bashrc (Single Stitch Pattern) [1, 2]
-STITCH="[ -f $MANAGED_ALIASES ] && source $MANAGED_ALIASES"
-grep -qF "$MANAGED_ALIASES" "$HOME/.bashrc" || echo -e "\n$STITCH" >> "$HOME/.bashrc"
+log_success "Environment profiles compiled down to active machine: $SYNCHED_ALIASES"
