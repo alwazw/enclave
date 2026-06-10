@@ -33,8 +33,15 @@ trap 'failure_trap ${LINENO}' ERR
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
+echo -e "\e[1;35m========================================================================\e[0m"
+echo -e "\e[1;32m🌟 INITIALIZING PROFESSIONAL LINUX SPECIFICATION SUITE v2.5...\e[0m"
+echo -e "\e[1;35m========================================================================\e[0m"
+
+
+
+
 # ------------------------------------------------------------------------------
-# 1. PRIVILEGE CHECK & ELEVATION LOOP
+# PRIVILEGE CHECK & ELEVATION LOOP
 # ------------------------------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
     echo -e "\e[1;35m==================================================\e[0m"
