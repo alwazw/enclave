@@ -24,27 +24,29 @@ cat << EOF > "$SYNCHED_ALIASES"
 EOF
 
 # 2. Parse and Compile structural data mappings (aliases.env)
-if [ -f "$DATA_DIR/aliases.env" ]; then
-    log_info "Processing shortcuts database [aliases.env]..."
+if [ -f "$DATA_DIR/var/aliases.env" ]; then
+    log_info "Processing shortcuts database [var/aliases.env]..."
     echo -e "\n# --- HARDCODED RUNTIME TRANSLATIONS ---" >> "$SYNCHED_ALIASES"
     
     while IFS='=' read -r key value || [ -n "$key" ]; do
-        # Sanitize whitespace, skip declarations, empty vectors, or raw annotations
         key=$(echo "$key" | xargs 2>/dev/null || echo "$key")
         [[ "$key" =~ ^#.*$ ]] && continue
         [[ -z "$key" ]] && continue
         
-        # Strip string-literal quotes cleanly
         clean_value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
         echo "alias ${key}='${clean_value}'" >> "$SYNCHED_ALIASES"
-    done < "$DATA_DIR/aliases.env"
+    done < "$DATA_DIR/var/aliases.env"
+else
+    log_warn "Could not locate $DATA_DIR/var/aliases.env"
 fi
 
 # 3. Concatenate and Inject Core System Operational Scripts (functions.env)
-if [ -f "$DATA_DIR/functions.env" ]; then
-    log_info "Injecting custom binary functional scopes [functions.env]..."
+if [ -f "$DATA_DIR/var/functions.env" ]; then
+    log_info "Injecting custom binary functional scopes [var/functions.env]..."
     echo -e "\n# --- INTEGRATED ORCHESTRATION FUNCTIONS ---" >> "$SYNCHED_ALIASES"
-    cat "$DATA_DIR/functions.env" >> "$SYNCHED_ALIASES"
+    cat "$DATA_DIR/var/functions.env" >> "$SYNCHED_ALIASES"
+else
+    log_warn "Could not locate $DATA_DIR/var/functions.env"
 fi
 
 # 4. Bind compiled asset upstream matrix securely inside local machine profiles
