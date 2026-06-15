@@ -16,7 +16,8 @@ apt-get update && apt-get install -y \
     ripgrep \
     bat \
     fzf \
-    dos2unix
+    dos2unix \
+    zram-tools
 
 # 2. Prepare and Register Docker Official Repository
 echo "🔑 Registering Docker repository and security keys..."
