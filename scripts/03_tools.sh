@@ -5,6 +5,7 @@ set -Eeuo pipefail
 echo "📦 Updating package lists and installing core utilities..."
 apt-get update && apt-get install -y \
     ca-certificates \
+    openssh-server \
     curl \
     git \
     tmux \
@@ -59,6 +60,12 @@ EOF
 # Dynamically fix the user field inside wsl.conf to mirror your current user
 sed -i "s/default=ubuntu/default=$SUDO_USER_NAME/g" /etc/wsl.conf
 
+# 6. Enable services to auto-start on boot (Queued for next boot)
+echo "🔄 Hooking Docker and SSH into systemd boot timeline..."
+systemctl enable ssh
+systemctl enable docker.service
+systemctl enable containerd.service
+
 echo ""
 echo "=============================================================================="
 echo "✅ INITIAL TOOL INSTALLATION COMPLETE!"
@@ -66,5 +73,6 @@ echo "==========================================================================
 echo "To finalize your systemd engine and apply your new Docker groups:"
 echo "1. Exit this terminal right now."
 echo "2. Open PowerShell on Windows and run: wsl --terminate vm2"
-echo "3. Re-open your terminal and verify Docker by running: docker run hello-world"
+echo "3. Re-open your terminal. Docker and SSH will start automatically!"
+echo "4. Verify Docker by running: docker run hello-world"
 echo "=============================================================================="
