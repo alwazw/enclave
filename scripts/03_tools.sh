@@ -17,7 +17,8 @@ apt-get update && apt-get install -y \
     bat \
     fzf \
     dos2unix \
-    zram-tools
+    zram-tools \
+    net-tools
 
 # 2. Prepare and Register Docker Official Repository
 echo "🔑 Registering Docker repository and security keys..."
@@ -67,6 +68,34 @@ systemctl enable ssh
 systemctl enable docker.service
 systemctl enable containerd.service
 
+# ==============================================================================
+# 📦 AUTOMATED NODE PROFILE VECTOR EXPORTER
+# ==============================================================================
+echo "📦 Exporting Node runtime pathways into custom configuration layers..."
+
+DATA_DIR="$(cd "$(dirname "${BASH_SOURCE}")/.." && pwd)"
+mkdir -p "$DATA_DIR/var"
+
+# Capture the target user running sudo
+SUDO_USER_NAME="${SUDO_USER:-$USER}"
+if [ "$SUDO_USER_NAME" = "root" ]; then
+    SUDO_USER_NAME=$(logname 2>/dev/null || echo "ubuntu")
+fi
+TARGET_USER_HOME=$(eval echo "~$SUDO_USER_NAME")
+
+# Automatically write paths cleanly without opening an editor
+cat << EOF > "$DATA_DIR/var/node.env"
+# --- AUTOMATED NODE VERSION MANAGER CONFIGURATION MAPPINGS ---
+export NVM_DIR="$TARGET_USER_HOME/.nvm"
+[ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
+[ -s "\$NVM_DIR/bash_completion" ] && \. "\$NVM_DIR/bash_completion"
+
+# Universal fallback layout path for global npm packages
+export PATH="\$TARGET_USER_HOME/.npm-global/bin:\$PATH"
+EOF
+
+echo "✅ Node operational environment metrics locked into: $DATA_DIR/var/node.env"
+
 echo ""
 echo "=============================================================================="
 echo "✅ INITIAL TOOL INSTALLATION COMPLETE!"
@@ -76,4 +105,3 @@ echo "1. Exit this terminal right now."
 echo "2. Open PowerShell on Windows and run: wsl --terminate vm2"
 echo "3. Re-open your terminal. Docker and SSH will start automatically!"
 echo "4. Verify Docker by running: docker run hello-world"
-echo "=============================================================================="
