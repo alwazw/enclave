@@ -123,3 +123,6 @@ logs/
 # relocated backups (2026-07-14)
 backups
 backups.old-pre-relocation/
+
+.venv/
+__pycache__/

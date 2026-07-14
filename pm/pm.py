@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 PM_DIR = os.path.dirname(os.path.abspath(__file__))
 TASKS = os.path.join(PM_DIR, "tasks")
 STATUSES = ["backlog", "todo", "doing", "blocked", "validating", "done"]
-CONTEXTS = ["docker", "code", "config", "data", "network", "other"]
+CONTEXTS = ["docker", "code", "config", "data", "network", "ux", "other"]
 FIELDS = ["id", "title", "status", "dept", "context", "assignee", "service",
           "endpoint", "budget_minutes", "due", "depends_on", "created_at",
           "started_at", "done_at"]

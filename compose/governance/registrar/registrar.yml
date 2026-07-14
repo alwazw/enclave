@@ -1,0 +1,41 @@
+# Enclave Registrar — constitution plane (evidence gate + jurisdiction + audit).
+# Included from local-stack.yml; part of the `core` profile: governance is not optional.
+services:
+  registrar:
+    build: ../../../registrar
+    image: enclave/registrar:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_registrar
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${REGISTRAR_PORT:-8090}:8090"
+    volumes:
+      - registrar_board:/board
+    environment:
+      BOARD_DIR: /board
+      REGISTRAR_GIT: "on"
+      REGISTRAR_ADMIN_TOKEN: ${REGISTRAR_ADMIN_TOKEN:-}
+    labels:
+      homepage.group: Governance
+      homepage.name: Registrar
+      homepage.icon: mdi-gavel
+      homepage.href: "http://localhost:${REGISTRAR_PORT:-8090}/docs"
+      homepage.description: Evidence-gated board — agents cannot close tasks without proof
+    networks: [frontend-net, backend-net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  registrar_board:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
