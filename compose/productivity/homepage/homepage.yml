@@ -1,0 +1,42 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_homepage
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${HOMEPAGE_PORT:-3030}:3000"
+    volumes:
+      - ../../../config/homepage:/app/config:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "${HOST_IP}:3030,localhost:3000"
+      HOMEPAGE_VAR_OPENWEBUI_PORT: ${OPENWEBUI_PORT:-3000}
+      HOMEPAGE_VAR_HERMES_PORT: ${HERMES_PORT:-8642}
+      HOMEPAGE_VAR_N8N_PORT: ${N8N_PORT:-5678}
+      HOMEPAGE_VAR_FLOWISE_PORT: ${FLOWISE_PORT:-3100}
+      HOMEPAGE_VAR_LANGFUSE_PORT: ${LANGFUSE_PORT:-3300}
+      HOMEPAGE_VAR_AFFINE_PORT: ${AFFINE_PORT:-3010}
+      HOMEPAGE_VAR_TRILIUM_PORT: ${TRILIUM_PORT:-8190}
+      HOMEPAGE_VAR_PORTAINER_PORT: ${PORTAINER_HTTP_PORT:-9000}
+      HOMEPAGE_VAR_CLOUDBEAVER_PORT: ${CLOUDBEAVER_PORT:-8978}
+      HOMEPAGE_VAR_DOZZLE_PORT: ${DOZZLE_PORT:-9999}
+      PUID: "1000"
+      PGID: "1000"
+    labels:
+      homepage.group: Dev Tools
+      homepage.name: Homepage
+      homepage.icon: homepage.png
+      homepage.href: "http://localhost:${HOMEPAGE_PORT:-3030}"
+      homepage.description: Stack dashboard — auto-discovers all containers via Docker socket
+    networks: [frontend-net]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend

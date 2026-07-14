@@ -1,0 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Homepage Dashboard — Docker Socket Configuration
+# Enables auto-discovery of containers via Docker labels.
+# Homepage reads homepage.* labels from every running container and
+# automatically populates the dashboard without manual service entries.
+# ─────────────────────────────────────────────────────────────────────────────
+
+my-docker:
+  socket: /var/run/docker.sock

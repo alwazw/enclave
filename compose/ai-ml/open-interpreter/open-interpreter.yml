@@ -1,0 +1,38 @@
+services:
+  open-interpreter:
+    image: openinterpreter/open-interpreter:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_open_interpreter
+    restart: unless-stopped
+    profiles: [memory]
+    ports:
+      - "${OI_PORT:-8143}:8143"
+    volumes:
+      - oi_workspace:/workspace
+    environment:
+      OPENAI_BASE_URL: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      OPENAI_API_KEY: ${LITELLM_API_KEY}
+      INTERPRETER_DEFAULT_MODEL: ${OI_MODEL:-qwen2.5-coder:32b}
+      INTERPRETER_SAFE_MODE: "off"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8143"
+    labels:
+      homepage.group: AI Agents
+      homepage.name: Open Interpreter
+      homepage.icon: https://openinterpreter.com/favicon.ico
+      homepage.href: "http://localhost:${OI_PORT:-8143}"
+      homepage.description: Sandboxed code execution — Hermes delegates all code tasks here
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8143/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  oi_workspace:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

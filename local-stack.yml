@@ -1,0 +1,142 @@
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  AEF2 — Local AI Stack  |  Root Orchestrator                       ║
+# ║                                                                     ║
+# ║  ARCHITECTURE                                                       ║
+# ║  ─────────────────────────────────────────────────────────────────  ║
+# ║  frontend-net  →  UIs (Open WebUI, n8n, AFFiNE, Homepage…)        ║
+# ║  backend-net   →  Services (Hermes, LiteLLM, MCPO, MCP servers…)  ║
+# ║  database-net  →  Data stores (PG, Redis, Qdrant, SurrealDB…)     ║
+# ║                                                                     ║
+# ║  PROFILES (set DOCKER_COMPOSE_PROFILES or use --profile flag)      ║
+# ║  core          — databases, LLM infra, Hermes, Open WebUI          ║
+# ║  automation    — n8n, Flowise                                       ║
+# ║  knowledge     — AFFiNE, Trilium, AnythingLLM, Docling             ║
+# ║  memory        — Mem0, Open Interpreter                            ║
+# ║  extras        — Weaviate, ChromaDB (additional vector stores)     ║
+# ║  observability — Langfuse, Dozzle                                  ║
+# ║  tools         — Portainer, CloudBeaver                            ║
+# ║                                                                     ║
+# ║  USAGE                                                              ║
+# ║  docker compose -f local-stack.yml --profile core up -d            ║
+# ║  docker compose -f local-stack.yml --profile core \               ║
+# ║    --profile knowledge --profile automation up -d                  ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+# 
+# docker compose -f local-stack.yml --profile core --profile knowledge up -d
+
+name: ${COMPOSE_PROJECT_NAME:-aef2}
+
+# ── Shared networks (declared here, referenced as external in sub-files) ─
+networks:
+  frontend-net:
+    driver: bridge
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    driver: bridge
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    driver: bridge
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database
+
+# ── Global volumes (declared here to survive service restarts) ───────────
+volumes:
+  postgres_data:
+  redis_data:
+  surrealdb_data:
+  qdrant_data:
+  chromadb_data:
+  weaviate_data:
+  ollama_data:
+  litellm_data:
+  hermes_data:
+  open_webui_data:
+  n8n_data:
+  flowise_data:
+  mem0_data:
+  oi_workspace:
+  anythingllm_data:
+  docling_data:
+  affine_uploads:
+  affine_config:
+  trilium_data:
+  langfuse_data:
+  portainer_data:
+  cloudbeaver_data:
+  dozzle_data:
+  homepage_icons:
+  mcp_workspace:
+  mcp_memory_data:
+  mcpo_data:
+
+# ── Service includes (each file owns its service definition) ─────────────
+include:
+
+  # ── LAYER 1: Core Databases ───────────────────────────────────────────
+  - path: compose/database/postgres/postgres.yml
+    env_file: .env
+  - path: compose/database/redis/redis.yml
+    env_file: .env
+  - path: compose/database/surrealdb/surrealdb.yml
+    env_file: .env
+
+  # ── LAYER 2: Vector Stores ────────────────────────────────────────────
+  - path: compose/database/qdrant/qdrant.yml
+    env_file: .env
+  - path: compose/database/chromadb/chromadb.yml
+    env_file: .env
+  - path: compose/database/weaviate/weaviate.yml
+    env_file: .env
+
+  # ── LAYER 3: LLM Infrastructure ───────────────────────────────────────
+  - path: compose/ai-ml/ollama/ollama.yml
+    env_file: .env
+  - path: compose/ai-ml/litellm/litellm.yml
+    env_file: .env
+
+  # ── LAYER 4: Agent Gateway ─────────────────────────────────────────────
+  - path: compose/ai-ml/hermes/hermes.yml
+    env_file: .env
+
+  # ── LAYER 5: MCP Infrastructure ────────────────────────────────────────
+  - path: compose/ai-ml/mcp-servers/mcp-servers.yml
+    env_file: .env
+  - path: compose/ai-ml/mcpo/mcpo.yml
+    env_file: .env
+
+  # ── LAYER 6: AI Interfaces & Frameworks ────────────────────────────────
+  - path: compose/ai-ml/open-webui/open-webui.yml
+    env_file: .env
+  - path: compose/ai-ml/n8n/n8n.yml
+    env_file: .env
+  - path: compose/ai-ml/flowise/flowise.yml
+    env_file: .env
+  - path: compose/ai-ml/anything-llm/anything-llm.yml
+    env_file: .env
+  - path: compose/ai-ml/open-interpreter/open-interpreter.yml
+    env_file: .env
+  - path: compose/ai-ml/mem0/mem0.yml
+    env_file: .env
+  - path: compose/ai-ml/docling/docling.yml
+    env_file: .env
+
+  # ── LAYER 7: Knowledge & Productivity ──────────────────────────────────
+  - path: compose/productivity/affine/affine.yml
+    env_file: .env
+  - path: compose/productivity/trilium/trilium.yml
+    env_file: .env
+  - path: compose/productivity/searxng/searxng.yml
+    env_file: .env
+
+  # ── LAYER 8: Observability ─────────────────────────────────────────────
+  - path: compose/ai-ml/langfuse/langfuse.yml
+    env_file: .env
+  - path: compose/productivity/dozzle/dozzle.yml
+    env_file: .env
+
+  # ── LAYER 9: DevTools & Dashboard ─────────────────────────────────────
+  - path: compose/dev-tools/portainer/portainer.yml
+    env_file: .env
+  - path: compose/dev-tools/cloudbeaver/cloudbeaver.yml
+    env_file: .env
+  - path: compose/productivity/homepage/homepage.yml
+    env_file: .env

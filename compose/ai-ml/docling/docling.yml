@@ -1,0 +1,27 @@
+services:
+  docling:
+    image: quay.io/ds4sd/docling-serve:v0.5.1
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_docling
+    restart: unless-stopped
+    profiles: [knowledge]
+    ports:
+      - "${DOCLING_PORT:-5001}:5001"
+    environment:
+      UVICORN_WORKERS: ${DOCLING_WORKERS:-2}
+    labels:
+      homepage.group: AI Tools
+      homepage.name: Docling
+      homepage.icon: https://ds4sd.github.io/docling/assets/logo.svg
+      homepage.href: "http://localhost:${DOCLING_PORT:-5001}"
+      homepage.description: IBM doc intelligence — PDF/DOCX/PPTX → clean Markdown for RAG ingest
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:5001/health',timeout=10); exit(0 if r.status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

@@ -1,0 +1,104 @@
+services:
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_hermes
+    restart: unless-stopped
+    profiles: [core]
+    # ── Run mode ────────────────────────────────────────────────────────────
+    # hermes-agent:latest exposes NO HTTP agent API. Its long-running daemon is
+    # the messaging gateway (Telegram/Discord/… + cron + kanban dispatch); its
+    # only HTTP server is the config `dashboard` (deliberately NOT exposed — it
+    # is a secrets-management UI). So Hermes runs here as the CLI/gateway agent
+    # runtime. The command first reconciles config.yaml (init-config.sh merges
+    # our committed override fragment into $HERMES_HOME/config.yaml, which the
+    # image seeds/migrates itself), then execs the gateway daemon.
+    command: ["sh", "-c", "sh /hermes-init.sh; exec hermes gateway run --no-supervise"]
+    volumes:
+      # HERMES_HOME is /opt/data (NOT /root/.hermes) — this is where the image
+      # actually persists config, sessions, kanban, memory, skills.
+      - hermes_data:/opt/data
+      # Committed config override fragment + boot reconciler (both secret-free).
+      - ../../../agents/hermes/hermes-config.yaml:/hermes-config.yaml:ro
+      - ../../../agents/hermes/init-config.sh:/hermes-init.sh:ro
+      # Persona / system prompt: the image loads $HERMES_HOME/SOUL.md fresh each turn.
+      - ../../../agents/hermes/SOUL.md:/opt/data/SOUL.md:ro
+      # Stack-specific skills, registered via skills.external_dirs in the fragment.
+      - ../../../agents/hermes/skills:/opt/data/custom-skills:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      HERMES_NAME: ${HERMES_NAME:-Hermes}
+      HERMES_HOME: /opt/data
+      GATEWAY_ALLOW_ALL_USERS: "true"
+      TELEGRAM_ALLOWED_USERS: ${TELEGRAM_ID}
+
+      # ── LLM — routes through LiteLLM (never direct to Ollama) ──────────────
+      # The model/provider wiring lives in config.yaml (via hermes-config.yaml).
+      # LITELLM_API_KEY is the sk virtual key consumed at runtime by the
+      # `litellm` provider's key_env mapping — do NOT use the LiteLLM master key.
+      LITELLM_BASE_URL: http://litellm:${LITELLM_PORT:-4000}/v1
+      LITELLM_API_KEY: ${LITELLM_API_KEY}
+      HERMES_DEFAULT_MODEL: ${HERMES_DEFAULT_MODEL:-openai/morpheus-main-model}
+
+      # ── Persistent memory ──────────────────────────────────────────────────
+      # HONEST LIMITATION: hermes-agent v0.16 has NO Qdrant/SurrealDB memory
+      # backend (its plugin set is honcho/mem0/openviking/hindsight/holographic/
+      # retaindb/byterover/supermemory — none is Qdrant/Surreal). Hermes memory
+      # is wired to the LOCAL `holographic` provider (SQLite fact store at
+      # $HERMES_HOME/memory_store.db on the hermes_data volume) via
+      # hermes-config.yaml. The env vars below are consumed by OTHER stack
+      # components (mcp-postgres/mcp-surrealdb, etc.), NOT by the Hermes image —
+      # they are inert here and kept only so a future Qdrant/Surreal provider
+      # (or the postgres/surreal MCP tools) can pick them up without editing.
+      QDRANT_URL: http://qdrant:6333            # inert for Hermes v0.16
+      QDRANT_API_KEY: ${QDRANT_API_KEY}         # inert for Hermes v0.16
+      SURREALDB_URL: http://surrealdb:${SURREALDB_PORT:-8000}  # inert for Hermes v0.16
+      SURREALDB_USER: ${SURREALDB_USER}
+      SURREALDB_PASS: ${SURREALDB_PASS}
+      SURREALDB_NS: ${HERMES_SURREAL_NS:-aef}
+      SURREALDB_DB: ${HERMES_SURREAL_DB:-hermes}
+
+      # ── Web search (LIVE) ──────────────────────────────────────────────────
+      # Consumed by the bundled web-searxng plugin; selected via web.backend in
+      # hermes-config.yaml. SearXNG must expose the JSON format (it does).
+      SEARXNG_URL: http://searxng:8080
+      # Telemetry
+      HERMES_TELEMETRY: "false"
+    depends_on:
+      litellm:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      surrealdb:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Agents
+      homepage.name: Hermes
+      homepage.icon: https://nousresearch.com/favicon.ico
+      homepage.description: Agent runtime (CLI + gateway) — routes to LiteLLM; skills + memory. No web UI.
+    networks:
+      - backend-net
+      - database-net
+    # ── Healthcheck ───────────────────────────────────────────────────────────
+    # Honest liveness of the REAL workload: `gateway status` scans for the live
+    # gateway daemon process (exit 0 only when it is actually running). Not a
+    # self-ping — there is no HTTP endpoint on this container. HOME must point at
+    # HERMES_HOME because the compose healthcheck runs as root without s6's
+    # with-contenv env repopulation.
+    healthcheck:
+      test: ["CMD", "sh", "-c", "HOME=/opt/data hermes gateway status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  hermes_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

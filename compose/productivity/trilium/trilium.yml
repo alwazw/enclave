@@ -1,0 +1,34 @@
+services:
+  trilium:
+    image: triliumnext/notes:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_trilium
+    restart: unless-stopped
+    profiles: [knowledge]
+    ports:
+      - "${TRILIUM_PORT:-8190}:8080"
+    volumes:
+      - trilium_data:/home/node/trilium-data
+    environment:
+      TRILIUM_DATA_DIR: /home/node/trilium-data
+      TRILIUM_PORT: "8080"
+    labels:
+      homepage.group: Knowledge
+      homepage.name: TriliumNext
+      homepage.icon: https://github.com/TriliumNext/Notes/raw/main/images/app-icons/png/icon_256x256.png
+      homepage.href: "http://localhost:${TRILIUM_PORT:-8190}"
+      homepage.description: Hierarchical second-brain — notes, tasks, mind maps, code snippets
+    networks: [frontend-net]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8080',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  trilium_data:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend

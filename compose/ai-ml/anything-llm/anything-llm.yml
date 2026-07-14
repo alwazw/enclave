@@ -1,0 +1,56 @@
+services:
+  anything-llm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_anythingllm
+    restart: unless-stopped
+    profiles: [knowledge]
+    ports:
+      - "${ANYTHINGLLM_PORT:-3200}:3001"
+    volumes:
+      - anythingllm_data:/app/server/storage
+    environment:
+      STORAGE_DIR: /app/server/storage
+      JWT_SECRET: ${ANYTHINGLLM_JWT}
+      LLM_PROVIDER: openai
+      OPENAI_BASE_PATH: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      OPEN_AI_KEY: ${LITELLM_API_KEY}
+      OPEN_MODEL_PREF: ${HERMES_DEFAULT_MODEL:-llama3.2:latest}
+      EMBEDDING_ENGINE: native
+      VECTOR_DB: qdrant
+      QDRANT_ENDPOINT: "http://qdrant:${QDRANT_PORT_HTTP:-6333}"
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      WHISPER_PROVIDER: local
+      TTS_PROVIDER: native
+      DISABLE_TELEMETRY: "true"
+    depends_on:
+      litellm:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    labels:
+      homepage.group: Knowledge
+      homepage.name: AnythingLLM
+      homepage.icon: https://anythingllm.com/favicon.ico
+      homepage.href: "http://localhost:${ANYTHINGLLM_PORT:-3200}"
+      homepage.description: Multi-user RAG workspace — upload docs, chat, build internal knowledge bases
+    networks: [frontend-net, backend-net, database-net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3001/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  anythingllm_data:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

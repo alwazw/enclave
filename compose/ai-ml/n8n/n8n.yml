@@ -1,0 +1,65 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_n8n
+    restart: unless-stopped
+    profiles: [automation]
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: "http://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/"
+      N8N_SECURE_COOKIE: "false"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: ${POSTGRES_HOST:-postgres}
+      DB_POSTGRESDB_PORT: ${POSTGRES_PORT:-5432}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      QUEUE_BULL_REDIS_HOST: ${REDIS_HOST:-redis}
+      QUEUE_BULL_REDIS_PORT: ${REDIS_PORT:-6379}
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # AI nodes — route through LiteLLM
+      N8N_AI_ENABLED: "true"
+      N8N_AI_PROVIDER: openai
+      N8N_AI_OPENAI_BASE_URL: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      N8N_AI_OPENAI_API_KEY: ${LITELLM_API_KEY}
+      GENERIC_TIMEZONE: ${TZ:-Etc/UTC}
+      TZ: ${TZ:-Etc/UTC}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      homepage.group: Automation
+      homepage.name: n8n
+      homepage.icon: n8n.png
+      homepage.href: "http://localhost:${N8N_PORT:-5678}"
+      homepage.description: Visual AI workflow automation — agents, RAG, webhooks, Hermes integration
+    networks: [frontend-net, backend-net, database-net]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  n8n_data:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

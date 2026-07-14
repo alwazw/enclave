@@ -1,0 +1,38 @@
+services:
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcpo
+    restart: unless-stopped
+    profiles: [core]
+    # Inject .env so ${SURREALDB_PASS}/${POSTGRES_*}/${GITHUB_TOKEN} referenced in
+    # config/mcpo/config.json resolve inside the container (path is relative to this file).
+    env_file:
+      - ../../../.env
+    ports:
+      - "${MCPO_PORT:-8080}:8080"
+    volumes:
+      - ../../../config/mcpo/config.json:/app/config.json:ro
+      - mcpo_data:/app/.mcpo
+    command: ["--config", "/app/config.json", "--port", "8080", "--api-key", "${MCPO_API_KEY}"]
+    labels:
+      homepage.group: AI Infrastructure
+      homepage.name: MCPO
+      homepage.icon: https://openwebui.com/favicon.ico
+      homepage.href: http://localhost:${MCPO_PORT:-8080}/docs
+      homepage.description: MCP-to-OpenAI bridge — exposes all MCP servers as tool endpoints
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8080/openapi.json',timeout=5); exit(0 if r.status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mcpo_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

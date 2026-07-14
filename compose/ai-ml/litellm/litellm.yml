@@ -1,0 +1,68 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_litellm
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    volumes:
+      - ../../../config/litellm/config.yml:/app/config.yaml:ro
+      - litellm_data:/app/.litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--telemetry", "False"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT:-5432}/litellm
+      STORE_MODEL_IN_DB: "true"
+      # External APIs (populated from .env — blank = disabled)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # GROQ key (mapped to groq/groq-base in the config) — ensure this is set if using groq/groq-base in the config
+      GROQ_API_KEY_1: ${GROQ_API_KEY_1:-}
+      # NVIDIA NIM key (tier-5 cascade) — config references os.environ/NVIDIA_NIM_API_KEY
+      NVIDIA_NIM_API_KEY: ${NVIDIA_NIM_API_KEY:-}
+      # OpenRouter keys (mapped to multiple models for tiered fallback) — ensure these are set if using OpenRouter-based models in the config 
+      OPENROUTER_KEY_1: ${OPENROUTER_KEY_1:-}
+      OPENROUTER_KEY_2: ${OPENROUTER_KEY_2:-}
+      OPENROUTER_KEY_3: ${OPENROUTER_KEY_3:-}
+      # Gemini keys (mapped to multiple models for tiered fallback) — ensure these are set if using Gemini-based models in the config 
+      GEMINI_API_KEY_1: ${GEMINI_API_KEY_1:-}
+      GEMINI_API_KEY_2: ${GEMINI_API_KEY_2:-}
+      GEMINI_API_KEY_3: ${GEMINI_API_KEY_3:-}
+      # Other model keys (mapped to specific models in the config) — ensure these are set if using the corresponding models in the config   
+      ALIBABA_MODELSTUDIO_KEY_1: ${ALIBABA_MODELSTUDIO_KEY_1:-}
+      DEEPSEEK_KEY_1: ${DEEPSEEK_KEY_1:-}
+      DEEPSEEK_KEY_2: ${DEEPSEEK_KEY_2:-}
+      NOVITA_KEY_1: ${NOVITA_KEY_1:-}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Infrastructure
+      homepage.name: LiteLLM
+      homepage.icon: https://litellm.ai/favicon.ico
+      homepage.href: http://localhost:${LITELLM_PORT:-4000}/ui
+      homepage.description: Single LLM gateway — all services call this, never Ollama directly
+    networks:
+      - backend-net
+      - database-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:4000/health/liveliness',timeout=5); exit(0 if r.status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  litellm_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Hermes Agent — config override fragment (AEF2 local stack)
+#
+# This is NOT the full Hermes config. It is DEEP-MERGED into
+# $HERMES_HOME/config.yaml (/opt/data/config.yaml) at container boot by
+# init-config.sh. Hermes seeds + migrates that file itself during cont-init;
+# we only patch the keys the stack needs.
+#
+# SCHEMA NOTE: hermes-agent:latest (v0.16.x, _config_version 28) uses the
+# top-level `model:` / `providers:` schema. The OLD `llm:` / `version: "1"`
+# schema (previous cli-config.yaml) is DEAD — the image ignores it. All keys
+# below were verified against the running image (config dump + CLI + provider
+# source), NOT guessed.
+#
+# SECRET-FREE: the LiteLLM virtual key is resolved at RUNTIME from the env var
+# named in `key_env` (LITELLM_API_KEY). It is never written to disk. Do not put
+# real keys in this file — it is committed to git.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Primary inference model. `provider: litellm` points at the custom provider
+# defined below; `default` is the model id exactly as LiteLLM registers it
+# (the "openai/" prefix is part of LiteLLM's registry id, not a Hermes prefix).
+model:
+  default: openai/morpheus-main-model
+  provider: litellm
+  base_url: http://litellm:4000/v1
+
+# Custom OpenAI-compatible provider → LiteLLM gateway.
+# All model traffic routes here (never direct to Ollama, never LiteLLM master key).
+providers:
+  litellm:
+    name: LiteLLM
+    base_url: http://litellm:4000/v1
+    key_env: LITELLM_API_KEY          # sk virtual key, read from env at runtime
+    default_model: openai/morpheus-main-model
+    api_mode: chat_completions
+
+# ── MCP tool servers ─────────────────────────────────────────────────────────
+# Schema: mcp_servers.<name>: {url, transport, enabled}. Verified via
+# `hermes mcp add`/`test` (connects, 14 filesystem tools). Tools register into
+# the agent as `mcp_<server>_<tool>` (e.g. mcp_filesystem_read_text_file).
+#
+# TRANSPORT = STREAMABLE-HTTP (endpoint :8000/mcp). We set `transport: http`
+# EXPLICITLY (not omit it): Hermes routes to its legacy SSE client ONLY when
+# transport == "sse" exactly (tools/mcp_tool.py:1600); any other value -> the
+# Streamable-HTTP client. The explicit value is REQUIRED because init-config.sh
+# deep-merges this fragment into the persisted /opt/data/config.yaml and a
+# deep-merge cannot DELETE a key — the previous run wrote `transport: sse`, so we
+# must OVERWRITE it (sse -> http) rather than rely on omission.
+#
+# WHY THIS CHANGED (T-0041/FIX-B): the stack's supergateway servers USED to run
+# in stdio→SSE mode, whose SINGLE MCP Protocol instance crashed with
+# "Already connected to a transport" the moment a 2nd concurrent SSE client
+# (mcpo + Hermes) connected → container restart loop. supergateway now runs
+# `--outputTransport streamableHttp --stateful`, which gives EACH session its
+# own child + Protocol instance (no shared-transport crash). That server speaks
+# real Streamable-HTTP at /mcp, so Hermes must use its Streamable-HTTP client,
+# i.e. a bare `url` with NO `transport: sse` override. (Verified: `hermes mcp
+# add --url .../mcp` connected and discovered all 14 tools.)
+#
+# NOTE ON RUNTIME: MCP tools are discovered synchronously at GATEWAY startup
+# (the production runtime here does a blocking discover_mcp_tools()). The
+# `hermes -z` one-shot CLI only waits 0.75s for a *background* discovery thread,
+# so cold one-shots may not see MCP tools — that is a CLI-harness limitation,
+# not a wiring defect. The gateway (and cron/kanban/acp paths) load them fully.
+mcp_servers:
+  filesystem:
+    url: http://mcp-filesystem:8000/mcp
+    transport: http
+    enabled: true
+  memory:
+    url: http://mcp-memory:8000/mcp
+    transport: http
+    enabled: true
+  github:
+    url: http://mcp-github:8000/mcp
+    transport: http
+    enabled: true
+  postgres:
+    url: http://mcp-postgres:8000/mcp
+    transport: http
+    enabled: true
+
+# ── Web search → SearXNG ─────────────────────────────────────────────────────
+# The bundled `web-searxng` plugin (plugins/web/searxng) reads the SEARXNG_URL
+# env var (set in hermes.yml) and calls `${SEARXNG_URL}/search?format=json`.
+# `search_backend` selects it for the web_search tool; `backend` is the shared
+# fallback. SearXNG must have the JSON output format enabled (it is here).
+web:
+  backend: searxng
+  search_backend: searxng
+
+# ── Persistent agent memory → holographic (local SQLite fact store) ───────────
+# IMPORTANT / HONEST LIMITATION: hermes-agent v0.16 does NOT support Qdrant or
+# SurrealDB as memory backends. Its external-memory plugin set is fixed
+# (honcho, mem0, openviking, hindsight, holographic, retaindb, byterover,
+# supermemory) — none of them is Qdrant/Surreal, and there is zero Qdrant/
+# Surreal code in the image outside unrelated teaching skills. The compose
+# QDRANT_URL / SURREALDB_URL env vars are therefore currently INERT for Hermes.
+#
+# `holographic` is the fully-local option: a SQLite fact store with FTS5 search
+# and HRR compositional retrieval at $HERMES_HOME/memory_store.db (on the
+# hermes_data volume → survives restarts). It gives the agent a `fact_store`
+# tool plus the always-on built-in memory (MEMORY.md/USER.md). This is the real,
+# verifiable persistent memory for the stack until/unless a Qdrant-backed
+# provider is added upstream.
+memory:
+  memory_enabled: true
+  provider: holographic
+
+# Register the stack's bundled custom skills (mounted read-only at this path).
+skills:
+  external_dirs:
+    - /opt/data/custom-skills
