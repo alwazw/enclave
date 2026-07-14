@@ -61,6 +61,9 @@ services:
       # Consumed by the bundled web-searxng plugin; selected via web.backend in
       # hermes-config.yaml. SearXNG must expose the JSON format (it does).
       SEARXNG_URL: http://searxng:8080
+      # Registrar (governance board) - consumed by the board skills
+      REGISTRAR_URL: http://registrar:8090
+      REGISTRAR_ADMIN_TOKEN: ${REGISTRAR_ADMIN_TOKEN:-}
       # Telemetry
       HERMES_TELEMETRY: "false"
     depends_on:
