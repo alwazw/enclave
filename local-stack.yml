@@ -102,6 +102,8 @@ include:
     env_file: .env
   - path: compose/governance/ux-validate/ux-validate.yml
     env_file: .env
+  - path: compose/governance/ceo/ceo.yml
+    env_file: .env
 
   # ── LAYER 5: MCP Infrastructure ────────────────────────────────────────
   - path: compose/ai-ml/mcp-servers/mcp-servers.yml

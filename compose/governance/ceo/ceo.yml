@@ -1,0 +1,47 @@
+# Enclave CEO runtime (§5.4) — one governed CEO bounded to one company, plus the
+# nginx that serves that company's workspace. Profile `ceo`: started per-project.
+# The CEO runs one task per invocation:
+#   docker compose -f local-stack.yml --profile ceo run --rm ceo-demo-widgets python graph.py --task T-XXXX
+services:
+  ceo-demo-widgets:
+    build: ../../../ceo
+    image: enclave/ceo:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_ceo_demo_widgets
+    profiles: [ceo]
+    volumes:
+      - demo_widgets_site:/workspace
+    environment:
+      CEO_COMPANY: demo-widgets              # jurisdiction: the ONLY scope it has
+      REGISTRAR_URL: http://registrar:8090
+      UX_VALIDATE_URL: http://ux-validate:8091
+      SITE_URL: http://demo-widgets-web
+      LITELLM_BASE_URL: http://litellm:${LITELLM_PORT:-4000}/v1
+      LITELLM_API_KEY: ${LITELLM_API_KEY}
+      CEO_MODEL: ${CEO_MODEL:-openai/morpheus-main-model}
+    networks: [backend-net, frontend-net]
+
+  demo-widgets-web:
+    image: nginx:alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_demo_widgets_web
+    restart: unless-stopped
+    profiles: [ceo]
+    volumes:
+      - demo_widgets_site:/usr/share/nginx/html:ro
+    networks: [frontend-net]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  demo_widgets_site:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
