@@ -25,8 +25,8 @@ curl -s -X POST "$REGISTRAR_URL/tasks" \
 ```
 3. Create the native dispatch board (idempotent):
 ```bash
-hermes kanban boards create <slug> 2>/dev/null || hermes kanban boards add <slug> 2>/dev/null || true
-hermes kanban --board <slug> create --title "<slug>: incorporation charter" 2>/dev/null || true
+hermes kanban boards create <slug>
+hermes kanban --board <slug> create "<slug>: incorporation charter" --created-by hermes-gateway
 ```
 4. Report to the Chairman: slug, Registrar task id, and remind that work items are
    dispatched with the `route_to_ceo` skill and **cannot close without evidence**.

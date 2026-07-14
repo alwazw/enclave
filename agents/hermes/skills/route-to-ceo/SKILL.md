@@ -28,12 +28,14 @@ curl -s -X POST "$REGISTRAR_URL/tasks/<T-id>/move" \
 ```
 3. Mirror to the native dispatch board so a worker profile can claim it:
 ```bash
-hermes kanban --board <slug> create --title "<T-id>: <task title>" 2>/dev/null || true
+hermes kanban --board <slug> create "<T-id>: <task title>" --assignee ceo-<slug> --created-by hermes-gateway
 ```
 4. Report: task id, assignee, and the evidence the executor must produce
    (tests for `code`, a real screenshot via ux-validate for `ux`).
 
 ## Governance rules (non-negotiable)
+- Run these commands as written and READ their output — if a command errors,
+  report the error; never claim a step happened when its command failed or was skipped.
 - Use context `ux` for anything user-visible: it forces a real screenshot at close.
 - Never move a task to `done` yourself unless evidence is already recorded;
   when the Registrar answers HTTP 409 REFUSED, relay the refusal verbatim.
