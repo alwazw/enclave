@@ -1,0 +1,45 @@
+# Enclave ux-validate — Playwright experience gate (§5.2). Renders the real
+# screen (desktop + mobile), writes screenshots into the shared board volume,
+# records them as evidence on the Registrar. Without it, `ux` tasks cannot close.
+services:
+  ux-validate:
+    build: ../../../ux-validate
+    image: enclave/ux-validate:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_ux_validate
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${UX_VALIDATE_PORT:-8091}:8091"
+    volumes:
+      - registrar_board:/board
+    environment:
+      BOARD_DIR: /board
+      REGISTRAR_URL: http://registrar:8090
+      REGISTRAR_ADMIN_TOKEN: ${REGISTRAR_ADMIN_TOKEN:-}
+    labels:
+      homepage.group: Governance
+      homepage.name: UX Validate
+      homepage.icon: mdi-monitor-screenshot
+      homepage.href: "http://localhost:${UX_VALIDATE_PORT:-8091}/docs"
+      homepage.description: Playwright experience gate — real screenshots as evidence
+    networks: [frontend-net, backend-net]
+    depends_on:
+      registrar:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  registrar_board:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

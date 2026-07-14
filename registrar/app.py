@@ -145,6 +145,42 @@ def create_app(board_dir: str | None = None) -> FastAPI:
     def stats(company: str = Depends(scope)):
         return board.stats(company)
 
+    # ── board UI: kanban with screenshot thumbnails (§5.2) ──────────────────
+    from fastapi.responses import HTMLResponse
+    from fastapi.staticfiles import StaticFiles
+    import re as _re
+
+    app.mount("/artifacts", StaticFiles(directory=board.artifacts_dir), name="artifacts")
+
+    @app.get("/board", response_class=HTMLResponse)
+    def board_html():
+        cols = []
+        for s in STATUSES:
+            cards = []
+            for t in board.list_tasks("*", status=s):
+                ev = board._section(t["_body"], "Evidence")
+                thumb = ""
+                m = _re.search(r"artifact:\s*artifacts/(\S+)", ev)
+                if m:
+                    thumb = f'<img src="/artifacts/{m.group(1)}" alt="evidence">'
+                badge = " &#10003;" if ev else ""
+                cards.append(
+                    f'<div class="card">{thumb}<b>{t["id"]}</b>{badge} '
+                    f'{t.get("title", "")}<br><small>{t.get("company") or "(default)"} '
+                    f'&middot; {t.get("context", "")}</small></div>')
+            cols.append(f'<div class="col"><h3>{s} ({len(cards)})</h3>{"".join(cards)}</div>')
+        return (
+            '<!doctype html><html><head><title>Enclave Board</title><style>'
+            'body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:16px}'
+            '.wrap{display:flex;gap:12px;align-items:flex-start}'
+            '.col{flex:1;background:#1e293b;border-radius:8px;padding:10px;min-width:130px}'
+            '.card{background:#334155;border-radius:6px;padding:8px;margin:8px 0;font-size:13px}'
+            '.card img{width:100%;border-radius:4px;margin-bottom:6px}'
+            'h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8}'
+            '</style></head><body><h2>Enclave &mdash; evidence-gated board</h2>'
+            f'<div class="wrap">{"".join(cols)}</div></body></html>'
+        )
+
     return app
 
 

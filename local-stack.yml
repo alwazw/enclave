@@ -100,6 +100,8 @@ include:
   # ── LAYER 4b: Governance — the Registrar (evidence gate) ──────────────
   - path: compose/governance/registrar/registrar.yml
     env_file: .env
+  - path: compose/governance/ux-validate/ux-validate.yml
+    env_file: .env
 
   # ── LAYER 5: MCP Infrastructure ────────────────────────────────────────
   - path: compose/ai-ml/mcp-servers/mcp-servers.yml
