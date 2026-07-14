@@ -12,7 +12,7 @@ services:
     # runtime. The command first reconciles config.yaml (init-config.sh merges
     # our committed override fragment into $HERMES_HOME/config.yaml, which the
     # image seeds/migrates itself), then execs the gateway daemon.
-    command: ["sh", "-c", "sh /hermes-init.sh; exec hermes gateway run --no-supervise"]
+    command: ["sh", "-c", "sh /hermes-init.sh; (hermes gateway restart >/dev/null 2>&1 || hermes gateway run --no-supervise &); exec sleep infinity"]
     volumes:
       # HERMES_HOME is /opt/data (NOT /root/.hermes) — this is where the image
       # actually persists config, sessions, kanban, memory, skills.
