@@ -56,3 +56,10 @@ print(f"[hermes-init] merged {frag_path} -> {cfg_path}: "
       f"provider={m.get('provider')} model={m.get('default')} "
       f"base_url={m.get('base_url')}")
 PY
+
+# ── Stale gateway lock cleanup (container-restart robustness) ────────────────
+# The gateway writes gateway.lock/gateway.pid into $HERMES_HOME (persisted
+# volume). After a container recreate the old pid is meaningless, but its
+# presence makes `hermes gateway run` refuse to start -> crash loop. One hermes
+# per container, so clearing at boot is always safe here.
+rm -f "${HERMES_HOME:-/opt/data}/gateway.lock" "${HERMES_HOME:-/opt/data}/gateway.pid" 2>/dev/null || true
