@@ -180,16 +180,15 @@ create_network "${PROJECT_NAME}_database"
 # ── Step 6: Docker volumes ─────────────────────────────────────────────────────
 step "Creating Docker volumes"
 
-VOLUMES=(
-  "postgres_data" "redis_data" "surrealdb_data" "qdrant_data"
-  "chromadb_data" "weaviate_data" "ollama_data" "hermes_data"
-  "openwebui_data" "n8n_data" "flowise_data" "mem0_data"
-  "langfuse_data" "affine_data" "trilium_data" "anythingllm_data"
-  "portainer_data" "cloudbeaver_data"
-)
+# Volume list is derived from the compose config itself (all profiles) so it can
+# never drift from the compose files again. Volumes are external+unprefixed.
+ALL_PROFILE_FLAGS="--profile core --profile automation --profile knowledge --profile memory --profile extras --profile observability --profile tools"
+# shellcheck disable=SC2086
+mapfile -t VOLUMES < <($DOCKER_COMPOSE_CMD -f local-stack.yml $ALL_PROFILE_FLAGS config --volumes 2>/dev/null | sort -u)
+[[ ${#VOLUMES[@]} -gt 0 ]] || { echo "FATAL: could not derive volume list from compose config" >&2; exit 1; }
 
 for vol in "${VOLUMES[@]}"; do
-  FULL_VOL="${PROJECT_NAME}_${vol}"
+  FULL_VOL="${vol}"  # volumes are declared external+unprefixed in compose files
   if docker volume inspect "$FULL_VOL" &>/dev/null; then
     info "Volume already exists: $FULL_VOL"
   else

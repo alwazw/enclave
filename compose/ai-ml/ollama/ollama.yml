@@ -12,13 +12,9 @@ services:
       OLLAMA_HOST: 0.0.0.0
       OLLAMA_ORIGINS: "*"
       OLLAMA_KEEP_ALIVE: 24h
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      # GPU is OPTIONAL (bonus tier — see README): the default boot is CPU-only so a
+      # no-GPU clone works out of the box. To enable NVIDIA acceleration, ALSO pass
+      # the override:  -f compose/ai-ml/ollama/ollama.gpu.yml
     labels:
       homepage.group: AI Infrastructure
       homepage.name: Ollama
