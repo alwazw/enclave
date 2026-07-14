@@ -1,9 +1,9 @@
 services:
   langfuse:
-    image: langfuse/langfuse:latest
+    image: langfuse/langfuse:2
     container_name: ${COMPOSE_PROJECT_NAME:-aef2}_langfuse
     restart: unless-stopped
-    profiles: [observability]
+    profiles: [core]
     ports:
       - "${LANGFUSE_PORT:-3300}:3000"
     volumes:
@@ -15,6 +15,14 @@ services:
       SALT: ${LANGFUSE_ENCRYPTION_KEY}
       LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}
       LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY}
+      # Headless-init an org+user+project so keys work on first boot (v2).
+      LANGFUSE_INIT_ORG_ID: enclave
+      LANGFUSE_INIT_ORG_NAME: Enclave
+      LANGFUSE_INIT_PROJECT_ID: enclave
+      LANGFUSE_INIT_PROJECT_NAME: Enclave
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
       TELEMETRY_ENABLED: "false"
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
     depends_on:

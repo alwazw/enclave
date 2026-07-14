@@ -203,3 +203,8 @@ router_settings:
 litellm_settings:
   drop_params: true
   set_verbose: false
+  # Observability: emit a Langfuse trace for every call (§ launch-gate tracing).
+  # Active only when LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST are present in the env;
+  # absent keys => callback is a harmless no-op (no hard dependency).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
