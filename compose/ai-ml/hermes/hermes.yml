@@ -27,6 +27,9 @@ services:
       # Committed config override fragment + boot reconciler (both secret-free).
       - ../../../agents/hermes/hermes-config.yaml:/hermes-config.yaml:ro
       - ../../../agents/hermes/init-config.sh:/hermes-init.sh:ro
+      # #29: one-shot Telegram boot-race self-heal, invoked from the
+      # healthcheck below (never gates health — see the healthcheck comment).
+      - ../../../agents/hermes/telegram-selfheal.sh:/telegram-selfheal.sh:ro
       # Persona / system prompt: the image loads $HERMES_HOME/SOUL.md fresh each turn.
       - ../../../agents/hermes/SOUL.md:/opt/data/SOUL.md:ro
       # Stack-specific skills, registered via skills.external_dirs in the fragment.
@@ -99,7 +102,14 @@ services:
     # HERMES_HOME because the compose healthcheck runs as root without s6's
     # with-contenv env repopulation.
     healthcheck:
-      test: ["CMD", "sh", "-c", "HOME=/opt/data hermes gateway status"]
+      # Runs the #29 self-heal as a background side effect on every check
+      # (it no-ops after its first real attempt via its own marker file, and
+      # no-ops immediately if the detected condition isn't present) — but
+      # PASS/FAIL is still driven ONLY by `hermes gateway status`. The
+      # Telegram platform adapter is one optional messaging surface; a bug in
+      # it must never fail the whole gateway's health or block other
+      # services' `depends_on: condition: service_healthy`.
+      test: ["CMD", "sh", "-c", "sh /telegram-selfheal.sh >/dev/null 2>&1 & HOME=/opt/data hermes gateway status"]
       interval: 30s
       timeout: 10s
       retries: 5
