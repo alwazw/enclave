@@ -154,10 +154,15 @@ model_list:
     tpm: 500000
 
   # ─── EMBEDDING (local, private) + typo alias ───
+  # #32: only entries in this whole file with no explicit caps — added.
   - model_name: openai/morpheus-embedding-model
     litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
   - model_name: openai/morpheus-embeding-model
     litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
 
   # ════════════════════════════════════════════════════════════════════
   #  PROD-DEFERRED — Anthropic. DEFINED but NOT wired into the dev fallbacks
@@ -204,10 +209,18 @@ router_settings:
     RateLimitErrorRetries: 2
     TimeoutErrorRetries: 2
     InternalServerErrorRetries: 2
+  # #32 incident (2026-07-16 05:18): main-model's entire pool was down at once
+  # (Gemini-Pro at 0 free-tier quota on all 3 keys, DeepSeek both keys out of
+  # balance) — total failure, Chairman: "make sure the last fallback in all
+  # pools is openrouter free:free no matter what." openrouter-free moved from
+  # 2nd to LAST in every chain: local-fallback currently has zero Ollama
+  # models pulled on this host, so if a request ever reaches that far,
+  # openrouter-free must be strictly after it as the true final safety net,
+  # not before.
   fallbacks:
-    - {"openai/morpheus-main-model":    ["openai/morpheus-main-tier2", "openai/morpheus-openrouter-free", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback"]}
-    - {"openai/morpheus-utility-model": ["openai/morpheus-utility-tier2", "openai/morpheus-openrouter-free", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback"]}
-    - {"openai/morpheus-utitlity-model":["openai/morpheus-utility-tier2", "openai/morpheus-openrouter-free", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback"]}
+    - {"openai/morpheus-main-model":    ["openai/morpheus-main-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
+    - {"openai/morpheus-utility-model": ["openai/morpheus-utility-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
+    - {"openai/morpheus-utitlity-model":["openai/morpheus-utility-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
 
 litellm_settings:
   drop_params: true
