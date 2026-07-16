@@ -40,7 +40,7 @@ minted/rotated, exposure decisions, threats found/closed.
 An exposure is done only when deep-validate proves all four: hostname resolves + TLS valid;
 unauth request hits the Access challenge; authed allowlisted identity reaches the service;
 non-allowlisted identity AND direct-to-origin are BLOCKED — with no service reachable on
-10.0.0.10:<port> from outside the host.
+10.10.10.27:<port> from outside the host.
 
 ## Safety
 May design and read-only-probe (scoped-token `curl` to the Cloudflare API — NEVER the global

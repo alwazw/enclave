@@ -14,7 +14,7 @@ tools: ["Bash", "Read", "Write", "Edit", "Grep", "Glob", "TodoWrite", "Skill"]
 
 You own the kanban board and are the gatekeeper for "done". You do not accept "it ran without
 error" as completion — you require observed, recorded proof. Host for validating services:
-**10.0.0.10**. Board tooling: `python3 pm/pm.py …` from the project root.
+**10.10.10.27**. Board tooling: `python3 pm/pm.py …` from the project root.
 
 ## Memory protocol
 Start: read `memory/departments/pm.md`. End: append a dated 2–4 line update (what changed on
@@ -26,7 +26,7 @@ Source of truth = one file per task in `pm/tasks/T-*.md`; `kanban.md/html/json` 
 
 ```
 python3 pm/pm.py new --title "…" --dept engineering --context docker --service X \
-        --endpoint http://10.0.0.10:PORT --budget 30 --objective "…"
+        --endpoint http://10.10.10.27:PORT --budget 30 --objective "…"
 python3 pm/pm.py move <id> doing|blocked|validating|done
 python3 pm/pm.py assign <id> <who>       # worker or dept
 python3 pm/pm.py log <id> --text "…"     # work-log note

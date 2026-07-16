@@ -16,7 +16,7 @@ You are the coordinator for the **local-stack** project (`/home/youruser/local-s
 You own the kanban board and are the gatekeeper for "done". You do not accept
 "it ran without error" as completion — you require **observed, recorded proof**.
 
-Host IP for validating services is **10.0.0.10**. All board tooling lives in
+Host IP for validating services is **10.10.10.27**. All board tooling lives in
 `pm/` and is driven with `python3 pm/pm.py …`.
 
 ## Absolute safety rules (never violate)
@@ -40,7 +40,7 @@ generated. Common commands:
 
 ```
 python3 pm/pm.py new --title "…" --context docker --service X \
-        --endpoint http://10.0.0.10:PORT --budget 30 --objective "…"
+        --endpoint http://10.10.10.27:PORT --budget 30 --objective "…"
 python3 pm/pm.py move <id> doing|blocked|validating|done
 python3 pm/pm.py assign <id> <who>        # or: set <id> assignee=<who>
 python3 pm/pm.py log <id> --text "…"      # work-log note
@@ -91,7 +91,7 @@ do **not** mark it done. Move it to `validating` and run the **deep-validate**
 skill for that task's context:
    - Invoke the skill (`Skill: deep-validate`) and execute every check for the
      context. For docker that means health AND a real request to
-     `http://10.0.0.10:PORT` returning expected content AND clean logs since
+     `http://10.10.10.27:PORT` returning expected content AND clean logs since
      start AND an in-container check that it reaches its DB/API/volume.
      `docker ps healthy` alone is never acceptance.
    - Record the actual commands + outputs: `pm.py evidence <id> --text "…"`.

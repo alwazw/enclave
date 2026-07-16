@@ -38,6 +38,49 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# ── Shared helpers (generic — no host-specific values baked in) ────────────────
+
+# set_env_var VAR VALUE — update (or append, if missing) VAR=VALUE in .env.
+# Never logs the value for anything that looks like a secret; callers of this helper in this
+# script only ever pass non-secret config (IPs, thread counts, timeouts).
+set_env_var() {
+  local var="$1" val="$2" esc
+  esc=$(printf '%s\n' "$val" | sed 's/[[\.*^$()+?{|]/\\&/g')
+  if grep -qE "^${var}=" .env 2>/dev/null; then
+    if [[ "$(uname)" == "Darwin" ]]; then
+      sed -i '' "s|^${var}=.*|${var}=${esc}|" .env
+    else
+      sed -i "s|^${var}=.*|${var}=${esc}|" .env
+    fi
+  else
+    echo "${var}=${val}" >> .env
+  fi
+}
+
+# check_disk_headroom REQUIRED_GB LABEL — best-effort warning (not exact accounting) before a
+# large pull. Returns 1 (and, if interactive, offers to skip) when free space looks tight.
+check_disk_headroom() {
+  local required_gb="$1" label="$2" avail_kb avail_gb
+  avail_kb=$(df -Pk . 2>/dev/null | awk 'NR==2{print $4}')
+  avail_gb=$(( avail_kb / 1024 / 1024 ))
+  if (( avail_gb < required_gb )); then
+    warn "Low disk headroom: ~${avail_gb}GB free, ${label} may need ~${required_gb}GB+."
+    if [[ -t 0 ]]; then
+      local ans=""
+      read -r -p "Continue anyway? [y/N] " ans || ans=""
+      if [[ ! "$ans" =~ ^[Yy] ]]; then
+        warn "Skipping: ${label}"
+        return 1
+      fi
+    else
+      warn "Non-interactive — continuing anyway; this may fail with ENOSPC. Free up space or re-run with more headroom if it does."
+    fi
+  else
+    info "Disk headroom OK: ~${avail_gb}GB free (~${required_gb}GB estimated for ${label})"
+  fi
+  return 0
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 echo -e "\n${BOLD}${CYAN}"
 echo "  ┌─────────────────────────────────────────────┐"
@@ -83,6 +126,105 @@ else
   warn ".env already exists — skipping copy (diff with .env.example to check for new variables)"
 fi
 
+# ── Step 2b: Detect HOST_IP ───────────────────────────────────────────────────
+# Generic, per-host detection — no value here is tuned to any specific machine.
+step "Detecting host IP address"
+
+detect_host_ip() {
+  local candidates=() line iface addr
+
+  if command -v ip &>/dev/null; then
+    # `ip -4 -o addr show`: col2=iface, col4=addr/cidr. Exclude loopback and any
+    # container-network bridge (docker0, br-*, veth*) — those are not the host's LAN address.
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      iface=$(awk '{print $2}' <<< "$line")
+      addr=$(awk '{print $4}' <<< "$line")
+      addr="${addr%%/*}"
+      case "$iface" in
+        lo|docker0|br-*|veth*) continue ;;
+      esac
+      [[ -n "$addr" ]] && candidates+=("$addr")
+    done < <(ip -4 -o addr show 2>/dev/null)
+  fi
+
+  if [[ ${#candidates[@]} -eq 0 ]] && command -v hostname &>/dev/null; then
+    # Fallback for minimal images without `ip`: hostname -I can't be filtered by interface
+    # name, so just drop loopback and the well-known Docker default bridge subnet (172.17.x).
+    local a
+    for a in $(hostname -I 2>/dev/null); do
+      [[ "$a" == 127.* || "$a" == 172.17.* ]] && continue
+      candidates+=("$a")
+    done
+  fi
+
+  if [[ ${#candidates[@]} -eq 0 ]]; then
+    warn "Could not auto-detect a host IP (no non-loopback, non-docker-bridge interface found) — leaving HOST_IP as-is in .env"
+    return
+  fi
+
+  local chosen=""
+  if [[ ${#candidates[@]} -eq 1 ]]; then
+    chosen="${candidates[0]}"
+    log "Detected a single candidate host IP: $chosen — using it automatically"
+  else
+    if [[ -t 0 ]]; then
+      echo "Multiple network interfaces found. Which is this machine's real LAN IP?"
+      local i=1 c
+      for c in "${candidates[@]}"; do
+        echo "  $i) $c"
+        i=$((i + 1))
+      done
+      local sel=""
+      read -r -p "Choose [1-${#candidates[@]}] (default: 1): " sel || sel=""
+      sel="${sel:-1}"
+      if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#candidates[@]} )); then
+        sel=1
+      fi
+      chosen="${candidates[$((sel - 1))]}"
+    else
+      chosen="${candidates[0]}"
+      warn "Multiple candidate IPs found (${candidates[*]}), running non-interactively — defaulting to the first: $chosen"
+    fi
+  fi
+
+  set_env_var HOST_IP "$chosen"
+  log "HOST_IP set to $chosen in .env"
+}
+
+detect_host_ip
+
+# ── Step 2c: Detect GPU ───────────────────────────────────────────────────────
+# NVIDIA-only, opt-in. Never required — CPU-only remains the default for any host without one.
+step "Detecting GPU"
+
+GPU_FLAG=""
+detect_gpu() {
+  if command -v nvidia-smi &>/dev/null && nvidia-smi -L 2>/dev/null | grep -q '^GPU'; then
+    local gpu_name
+    gpu_name=$(nvidia-smi -L 2>/dev/null | head -1)
+    log "NVIDIA GPU detected: $gpu_name"
+    local use_gpu=true
+    if [[ -t 0 ]]; then
+      local ans=""
+      read -r -p "Enable GPU acceleration for Ollama? [Y/n] " ans || ans=""
+      [[ "$ans" =~ ^[Nn] ]] && use_gpu=false
+    else
+      info "Running non-interactively — enabling GPU acceleration automatically (safe, opt-in overlay)."
+    fi
+    if [[ "$use_gpu" == true ]]; then
+      GPU_FLAG="-f compose/ai-ml/ollama/ollama.gpu.yml"
+      log "GPU acceleration enabled — will apply compose/ai-ml/ollama/ollama.gpu.yml"
+    else
+      info "GPU acceleration declined — Ollama will run CPU-only"
+    fi
+  else
+    info "No usable NVIDIA GPU detected (nvidia-smi missing or reports no device) — Ollama will run CPU-only. This is fine; a GPU is never required."
+  fi
+}
+
+detect_gpu
+
 # ── Step 3: Generate secrets ──────────────────────────────────────────────────
 step "Generating secrets for <CHANGE_ME> placeholders"
 
@@ -123,6 +265,44 @@ while IFS= read -r line; do
 done < .env
 
 [[ $CHANGED -gt 0 ]] && log "Generated $CHANGED secrets" || info "No <CHANGE_ME> placeholders found"
+
+# ── Step 3b: Compute Ollama resource governance from this host's real CPU count ──
+# Nothing here is a fixed number tuned to one machine — both values scale with `nproc`.
+step "Computing Ollama resource limits for this host"
+
+configure_ollama_resources() {
+  local cores
+  cores=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)
+
+  # OLLAMA_NUM_THREADS: reserve roughly HALF the host's cores for Ollama and leave the other
+  # half for the rest of the service mesh (Postgres, Redis, n8n, LiteLLM, Hermes, ...) sharing
+  # this box, so one local inference run can't starve everything else of CPU. Floored at 1 so
+  # this never computes to zero on a single-core host.
+  local num_threads=$(( cores / 2 ))
+  (( num_threads < 1 )) && num_threads=1
+
+  # OLLAMA_NUM_PARALLEL: how many generations Ollama will run concurrently. Each parallel slot
+  # roughly multiplies the loaded model's memory footprint, so this stays at the conservative
+  # default of 1 unless the host has enough cores (>=8) to plausibly serve more than one
+  # request without thrashing. This is a coarse heuristic, not a memory-aware calculation —
+  # operators with unusual RAM/CPU ratios should tune it by hand in .env.
+  local num_parallel=1
+  (( cores >= 8 )) && num_parallel=2
+
+  set_env_var OLLAMA_NUM_THREADS "$num_threads"
+  set_env_var OLLAMA_NUM_PARALLEL "$num_parallel"
+  log "Detected ${cores} CPU core(s) — set OLLAMA_NUM_THREADS=${num_threads}, OLLAMA_NUM_PARALLEL=${num_parallel} in .env"
+
+  # OLLAMA_KEEP_ALIVE isn't CPU-derived, just shortened from the old hardcoded 24h so an idle
+  # model doesn't permanently pin RAM on a shared host. Only set if genuinely absent (respects
+  # an already-customized .env, e.g. one hand-edited or copied from an older .env.example).
+  if ! grep -qE '^OLLAMA_KEEP_ALIVE=' .env 2>/dev/null; then
+    set_env_var OLLAMA_KEEP_ALIVE "30m"
+    log "OLLAMA_KEEP_ALIVE defaulted to 30m in .env (override there for a longer/shorter cache window)"
+  fi
+}
+
+configure_ollama_resources
 
 # ── Step 4: Create directories ────────────────────────────────────────────────
 step "Creating runtime directories"
@@ -199,17 +379,35 @@ done
 
 # ── Step 7: Pull images (optional) ────────────────────────────────────────────
 if [[ "$SKIP_PULL" == false ]]; then
-  step "Pulling Docker images for profile: $PROFILES"
-  PROFILE_FLAGS=""
-  IFS=',' read -ra PROFILE_ARRAY <<< "$PROFILES"
-  for p in "${PROFILE_ARRAY[@]}"; do
-    PROFILE_FLAGS+=" --profile $p"
-  done
-  # shellcheck disable=SC2086
-  $DOCKER_COMPOSE_CMD -f local-stack.yml $PROFILE_FLAGS pull --ignore-pull-failures || warn "Some images failed to pull — they will be pulled on first start"
+  step "Checking disk space before pulling images"
+  # Flat, conservative floor for "a handful of container images" — we can't cheaply know exact
+  # image sizes without pulling manifests over the network first, so this is a rough order-of-
+  # magnitude guard against repeating tonight's disk-full incident, not precise accounting.
+  if check_disk_headroom 10 "pulling Docker images for profile(s): $PROFILES"; then
+    step "Pulling Docker images for profile: $PROFILES"
+    PROFILE_FLAGS=""
+    IFS=',' read -ra PROFILE_ARRAY <<< "$PROFILES"
+    for p in "${PROFILE_ARRAY[@]}"; do
+      PROFILE_FLAGS+=" --profile $p"
+    done
+    # shellcheck disable=SC2086
+    $DOCKER_COMPOSE_CMD -f local-stack.yml $GPU_FLAG $PROFILE_FLAGS pull --ignore-pull-failures || warn "Some images failed to pull — they will be pulled on first start"
+  else
+    info "Skipping image pull due to low disk space (re-run once you've freed space, or pass --skip-pull to bypass this check)."
+    SKIP_PULL=true
+  fi
 else
   info "Skipping image pull (--skip-pull)"
 fi
+
+# ── Step 7.5: Pre-seed auth files that must exist before first container create ──
+# Dozzle/Portainer bind-mount a single host file into the container. If that host
+# path doesn't exist yet, Docker auto-creates it as a DIRECTORY instead of a file,
+# which then breaks the container permanently until the container is recreated
+# after fixing it by hand. Must run before `up -d` ever creates these containers.
+step "Pre-seeding Dozzle/Portainer auth files"
+bash "$SCRIPT_DIR/scripts/init-dozzle-auth.sh" || warn "Dozzle auth pre-seed failed — dozzle may fail to start (see scripts/init-dozzle-auth.sh)"
+bash "$SCRIPT_DIR/scripts/init-portainer-auth.sh" || warn "Portainer auth pre-seed failed — portainer may fail to start (see scripts/init-portainer-auth.sh)"
 
 # ── Step 8: Start the stack ───────────────────────────────────────────────────
 step "Starting AEF2 stack (profiles: $PROFILES)"
@@ -221,38 +419,102 @@ for p in "${PROFILE_ARRAY[@]}"; do
 done
 
 # shellcheck disable=SC2086
-$DOCKER_COMPOSE_CMD -f local-stack.yml $PROFILE_FLAGS up -d --remove-orphans
+$DOCKER_COMPOSE_CMD -f local-stack.yml $GPU_FLAG $PROFILE_FLAGS up -d --remove-orphans
 
 log "Stack started!"
+
+# ── Step 8b: Post-start bootstrap (owner/admin account claims) ────────────────
+# Several services ship with an unclaimed admin/owner account and NO enforcement
+# that stops the first LAN visitor from claiming it instead of the real operator.
+# Idempotent — safe to re-run, no-op if already claimed. Open WebUI is core (always
+# runs); the rest are gated to their profile.
+step "Claiming Open WebUI admin account"
+if [[ -x "$SCRIPT_DIR/scripts/init-open-webui-admin.sh" ]]; then
+  "$SCRIPT_DIR/scripts/init-open-webui-admin.sh" || warn "Open WebUI admin claim failed — first LAN visitor can still claim it (retry manually: scripts/init-open-webui-admin.sh)"
+else
+  warn "scripts/init-open-webui-admin.sh not found — skipping Open WebUI admin bootstrap"
+fi
+if [[ ",$PROFILES," == *",automation,"* ]]; then
+  step "Claiming n8n owner account"
+  if [[ -x "$SCRIPT_DIR/scripts/init-n8n-owner.sh" ]]; then
+    "$SCRIPT_DIR/scripts/init-n8n-owner.sh" || warn "n8n owner claim failed — first LAN visitor to n8n can still claim it (retry manually: scripts/init-n8n-owner.sh)"
+  else
+    warn "scripts/init-n8n-owner.sh not found — skipping n8n owner bootstrap"
+  fi
+  step "Bootstrapping Flowise admin account"
+  if [[ -x "$SCRIPT_DIR/scripts/init-flowise-admin.sh" ]]; then
+    "$SCRIPT_DIR/scripts/init-flowise-admin.sh" || warn "Flowise admin bootstrap failed — retry manually: scripts/init-flowise-admin.sh"
+  else
+    warn "scripts/init-flowise-admin.sh not found — skipping Flowise admin bootstrap"
+  fi
+fi
+if [[ ",$PROFILES," == *",knowledge,"* ]]; then
+  step "Initializing TriliumNext"
+  bash "$SCRIPT_DIR/scripts/init-trilium.sh" || warn "Trilium init failed — retry manually: scripts/init-trilium.sh"
+fi
 
 # ── Step 9: Pull Ollama models ────────────────────────────────────────────────
 if [[ "$PULL_MODELS" == true ]]; then
   step "Pulling default Ollama models (this may take a while)"
 
-  DEFAULT_MODELS=(
-    "llama3.2:latest"
-    "nomic-embed-text"
-  )
+  # Driven live by .env, not a fixed list — pulls whichever of these four vars are actually
+  # set. Blank or `#`-commented (this repo's existing convention for disabling a var) = skipped.
+  # This keeps OLLAMA_CODE_MODEL/OLLAMA_VISION_MODEL from being dead, misleading declarations.
+  MODEL_VARS=(OLLAMA_DEFAULT_MODEL OLLAMA_EMBED_MODEL OLLAMA_CODE_MODEL OLLAMA_VISION_MODEL)
+  DEFAULT_MODELS=()
+  for v in "${MODEL_VARS[@]}"; do
+    val=$(grep -E "^${v}=" .env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" | sed 's/[[:space:]]*$//')
+    [[ -n "$val" ]] && DEFAULT_MODELS+=("$val")
+  done
+  if [[ ${#DEFAULT_MODELS[@]} -eq 0 ]]; then
+    warn "No OLLAMA_*_MODEL vars set in .env — falling back to llama3.2:latest + nomic-embed-text:latest"
+    DEFAULT_MODELS=("llama3.2:latest" "nomic-embed-text:latest")
+  fi
+  info "Models queued to pull: ${DEFAULT_MODELS[*]}"
 
-  info "Waiting for Ollama to be ready..."
-  OLLAMA_PORT=$(grep -E '^OLLAMA_PORT=' .env | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
-  OLLAMA_PORT="${OLLAMA_PORT:-11434}"
-
-  for i in {1..30}; do
-    if curl -sf "http://localhost:${OLLAMA_PORT}/api/tags" &>/dev/null; then
-      log "Ollama is ready"
-      break
+  # Rough, best-effort disk-headroom check before pulling — not exact accounting. Most Ollama
+  # tags encode a parameter count (e.g. "32b", "3b"); at common Q4 quantization that's roughly
+  # 0.6GB on disk per billion parameters. Tags with no parseable size (embeddings, "latest")
+  # get a conservative flat estimate.
+  estimate_model_size_gb() {
+    local tag="$1" b
+    if [[ "$tag" =~ ([0-9]+(\.[0-9]+)?)[bB]([^0-9]|$) ]]; then
+      b="${BASH_REMATCH[1]}"
+      awk -v b="$b" 'BEGIN{printf "%.0f", (b*0.6)+0.5}'
+    elif [[ "$tag" == *embed* ]]; then
+      echo 1
+    else
+      echo 3
     fi
-    [[ $i -eq 30 ]] && warn "Ollama not ready after 60s — skipping model pulls"
-    sleep 2
+  }
+  total_estimate=0
+  for model in "${DEFAULT_MODELS[@]}"; do
+    total_estimate=$(( total_estimate + $(estimate_model_size_gb "$model") ))
   done
 
-  for model in "${DEFAULT_MODELS[@]}"; do
-    info "Pulling $model..."
-    docker exec "${PROJECT_NAME}_ollama" ollama pull "$model" \
-      && log "Pulled: $model" \
-      || warn "Failed to pull: $model (retry manually: docker exec ${PROJECT_NAME}_ollama ollama pull $model)"
-  done
+  if check_disk_headroom "$total_estimate" "pulling ${#DEFAULT_MODELS[@]} Ollama model(s)"; then
+    info "Waiting for Ollama to be ready..."
+    OLLAMA_PORT=$(grep -E '^OLLAMA_PORT=' .env | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+    OLLAMA_PORT="${OLLAMA_PORT:-11434}"
+
+    for i in {1..30}; do
+      if curl -sf "http://localhost:${OLLAMA_PORT}/api/tags" &>/dev/null; then
+        log "Ollama is ready"
+        break
+      fi
+      [[ $i -eq 30 ]] && warn "Ollama not ready after 60s — skipping model pulls"
+      sleep 2
+    done
+
+    for model in "${DEFAULT_MODELS[@]}"; do
+      info "Pulling $model..."
+      docker exec "${PROJECT_NAME}_ollama" ollama pull "$model" \
+        && log "Pulled: $model" \
+        || warn "Failed to pull: $model (retry manually: docker exec ${PROJECT_NAME}_ollama ollama pull $model)"
+    done
+  else
+    warn "Skipping Ollama model pulls due to low disk space. Pull manually once you've freed space: docker exec ${PROJECT_NAME}_ollama ollama pull <model>"
+  fi
 fi
 
 # ── Step 10: Health check ─────────────────────────────────────────────────────

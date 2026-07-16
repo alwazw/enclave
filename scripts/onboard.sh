@@ -300,6 +300,9 @@ INTERNAL_SECRETS=(
   # 2026-07-13 security hardening: admin-bootstrap secrets for previously
   # zero-auth/race-window surfaces (Dozzle, Portainer, n8n owner account).
   DOZZLE_AUTH_PASSWORD PORTAINER_ADMIN_PASSWORD N8N_OWNER_PASSWORD
+  # 2026-07-16: same class of fix for Open WebUI — first-signup-wins-admin race
+  # (see scripts/init-open-webui-admin.sh).
+  OPENWEBUI_ADMIN_PASSWORD
 )
 FREE_PROVIDER_KEYS=( GEMINI_API_KEY_1 GEMINI_API_KEY_2 GEMINI_API_KEY_3
                      OPENROUTER_KEY_1 OPENROUTER_KEY_2 OPENROUTER_KEY_3
@@ -576,6 +579,17 @@ bring_up() {
   local flags=(); IFS=',' read -ra parr <<< "$PROFILES"
   for p in "${parr[@]}"; do flags+=(--profile "$p"); done
 
+  # Dozzle/Portainer bind-mount a single host file into the container. If that
+  # host path doesn't exist BEFORE the container is first created, Docker
+  # auto-creates it as a directory instead of a file, breaking both services
+  # permanently until recreated. Must run before `up -d`.
+  if [[ ",$PROFILES," == *",observability,"* ]]; then
+    ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-dozzle-auth.sh" || warn "Dozzle auth pre-seed failed — see scripts/init-dozzle-auth.sh"
+  fi
+  if [[ ",$PROFILES," == *",tools,"* ]]; then
+    ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-portainer-auth.sh" || warn "Portainer auth pre-seed failed — see scripts/init-portainer-auth.sh"
+  fi
+
   info "Bringing up profile(s): ${BOLD}${PROFILES}${NC}"
   info "Databases and the LiteLLM gateway start first…"
   ( cd "$REPO_DIR" && "${DOCKER_COMPOSE[@]}" -f "$COMPOSE_FILE" \
@@ -595,6 +609,21 @@ bring_up() {
 
   # Provision the guardrail virtual key now that LiteLLM is up.
   provision_guardrail_key
+
+  # Claim first-run admin/owner accounts before anyone else on the LAN can.
+  # Several services leave an unclaimed admin slot with no enforcement — the
+  # first visitor to the web UI can otherwise claim it instead of the real
+  # operator. Idempotent — safe to re-run, no-op if already claimed.
+  info "Claiming first-run admin/owner accounts…"
+  ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-open-webui-admin.sh" || warn "Open WebUI admin claim failed — see scripts/init-open-webui-admin.sh"
+  if [[ ",$PROFILES," == *",automation,"* ]]; then
+    ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-n8n-owner.sh" || warn "n8n owner claim failed — see scripts/init-n8n-owner.sh"
+    ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-flowise-admin.sh" || warn "Flowise admin bootstrap failed — see scripts/init-flowise-admin.sh"
+  fi
+  if [[ ",$PROFILES," == *",knowledge,"* ]]; then
+    TRILIUM_PORT=$(_envget TRILIUM_PORT 8190)
+    ENV_FILE="$ENV_FILE" TRILIUM_BASE_URL="http://127.0.0.1:${TRILIUM_PORT}" bash "$REPO_DIR/scripts/init-trilium.sh" || warn "Trilium init failed — see scripts/init-trilium.sh"
+  fi
 
   # THE LONG POLE: a local model must exist for the offline floor. Narrate it.
   ensure_local_model "$proj"

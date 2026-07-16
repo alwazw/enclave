@@ -27,7 +27,9 @@ services:
       homepage.description: Real-time Docker log streaming — all container logs in one searchable UI
     networks: [frontend-net]
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthcheck"]
+      # Dozzle's image is distroless (no wget/curl/sh) — use its own built-in
+      # healthcheck subcommand instead, which the wget-based check could never run.
+      test: ["CMD", "/dozzle", "healthcheck"]
       interval: 20s
       timeout: 5s
       retries: 5

@@ -35,14 +35,14 @@ Pick the checklist for the task's `context` (see the task's frontmatter).
 Run every check, capture the actual command + output, then record it (below).
 
 ### context: docker  (a service/container)
-Host IP for this box is **10.0.0.10**. Run ALL of:
+Host IP for this box is **10.10.10.27**. Run ALL of:
 1. **Health** — container running and healthy:
    `docker inspect -f '{{.State.Status}} {{.State.Health.Status}}' <name>`
    (expect `running healthy`; if no healthcheck, say so and rely harder on 2–4)
 2. **Endpoint reachable** — the declared `endpoint` returns the expected
    status/content from the host, not just inside the container:
-   `curl -fsS -o /dev/null -w '%{http_code}' http://10.0.0.10:<port>`
-   and fetch real content: `curl -fsS http://10.0.0.10:<port>/<known-path> | head`
+   `curl -fsS -o /dev/null -w '%{http_code}' http://10.10.10.27:<port>`
+   and fetch real content: `curl -fsS http://10.10.10.27:<port>/<known-path> | head`
    (expect a 2xx/3xx and the app's actual markup/JSON — not an error page).
 3. **Logs clean since start** — no crashes / restart loop / stack traces:
    `docker logs --since "$(docker inspect -f '{{.State.StartedAt}}' <name>)" <name> 2>&1 | tail -50`
@@ -93,7 +93,7 @@ good":
 
 ```
 python3 pm/pm.py evidence <id> --text "\$ docker inspect -f '{{.State.Health.Status}}' homepage -> healthy
-\$ curl -fsS -o /dev/null -w '%{http_code}' http://10.0.0.10:3030 -> 200
+\$ curl -fsS -o /dev/null -w '%{http_code}' http://10.10.10.27:3030 -> 200
 \$ docker exec homepage wget -qO- http://gluetun:8000/health -> {\"status\":\"ok\"}
 logs since start: clean, RestartCount=0"
 ```

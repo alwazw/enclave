@@ -10,8 +10,12 @@ services:
       - flowise_data:/root/.flowise
     environment:
       PORT: "3000"
-      FLOWISE_USERNAME: ${FLOWISE_USERNAME:-admin}
-      FLOWISE_PASSWORD: ${FLOWISE_PASSWORD}
+      # NOTE: v3.1.2 does not read FLOWISE_USERNAME/FLOWISE_PASSWORD as container env vars —
+      # its workspace/organization auth model has no env-based basic-auth path (verified: zero
+      # references to either name in the shipped dist/). Deliberately NOT passed here to avoid
+      # implying they do anything. The real admin bootstrap is scripts/init-flowise-admin.sh,
+      # which calls the app's HTTP API (POST /api/v1/account/register) from outside the
+      # container using the same-named .env values — see .env's Flowise section.
       FLOWISE_SECRETKEY_OVERWRITE: ${FLOWISE_SECRET_KEY}
       DATABASE_TYPE: postgres
       DATABASE_HOST: ${POSTGRES_HOST:-postgres}

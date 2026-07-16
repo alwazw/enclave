@@ -11,10 +11,19 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0
       OLLAMA_ORIGINS: "*"
-      OLLAMA_KEEP_ALIVE: 24h
+      # Configurable, NOT hardcoded — setup.sh computes OLLAMA_NUM_THREADS/NUM_PARALLEL from
+      # the host's actual CPU count at bootstrap and writes them into .env (see setup.sh's
+      # configure_ollama_resources()). The fallbacks below only apply if .env is missing them
+      # entirely (e.g. hand-edited compose usage) and are deliberately conservative so a
+      # local inference run never assumes it owns the whole box — the rest of the mesh
+      # (Postgres, Redis, n8n, LiteLLM, ...) needs headroom too.
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+      OLLAMA_NUM_THREADS: ${OLLAMA_NUM_THREADS:-2}
       # GPU is OPTIONAL (bonus tier — see README): the default boot is CPU-only so a
       # no-GPU clone works out of the box. To enable NVIDIA acceleration, ALSO pass
-      # the override:  -f compose/ai-ml/ollama/ollama.gpu.yml
+      # the override:  -f compose/ai-ml/ollama/ollama.gpu.yml (setup.sh does this
+      # automatically when it detects a working NVIDIA GPU).
     labels:
       homepage.group: AI Infrastructure
       homepage.name: Ollama

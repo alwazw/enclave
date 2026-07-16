@@ -10,7 +10,7 @@
         href: "http://localhost:{{HOMEPAGE_VAR_OPENWEBUI_PORT}}"
         description: "Chat UI — all local models via LiteLLM gateway"
         server: my-docker
-        container: aef2_open-webui
+        container: aef2_open_webui
         widget:
           type: customapi
           url: "http://open-webui:3000/api/v1/models"

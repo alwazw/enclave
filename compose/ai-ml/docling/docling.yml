@@ -1,6 +1,8 @@
 services:
   docling:
-    image: quay.io/ds4sd/docling-serve:v0.5.1
+    # CPU-only build: this host has no GPU passthrough, and the default tag bundles
+    # CUDA runtime libs unused here (13.4GB vs 5.85GB for identical model coverage).
+    image: quay.io/ds4sd/docling-serve-cpu:v0.5.1
     container_name: ${COMPOSE_PROJECT_NAME:-aef2}_docling
     restart: unless-stopped
     profiles: [knowledge]

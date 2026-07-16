@@ -1,6 +1,14 @@
 services:
   open-interpreter:
-    image: openinterpreter/open-interpreter:latest
+    # openinterpreter/open-interpreter:latest does not exist on Docker Hub — no
+    # official image was ever published, and that bad reference was aborting
+    # `docker compose pull` for the ENTIRE stack (compose stops the whole pull
+    # batch on the first per-image failure). Built from the real PyPI package
+    # instead — see ../../../open-interpreter/Dockerfile for the full rationale
+    # (upstream GitHub repo has since been repurposed into an unrelated project;
+    # PyPI 0.4.3 is the last real release and the source of truth here).
+    build: ../../../open-interpreter
+    image: enclave/open-interpreter:latest
     container_name: ${COMPOSE_PROJECT_NAME:-aef2}_open_interpreter
     restart: unless-stopped
     profiles: [memory]
