@@ -598,6 +598,25 @@ bring_up() {
 
   # THE LONG POLE: a local model must exist for the offline floor. Narrate it.
   ensure_local_model "$proj"
+
+  # TriliumNext needs its first-run setup wizard driven headlessly, or it sits
+  # at an unusable setup screen forever (see scripts/init-trilium.sh).
+  ensure_trilium_initialized "$proj"
+}
+
+ensure_trilium_initialized() {
+  local proj="$1"
+  local cname="${proj}_trilium"
+  if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
+    return 0  # not in this profile set
+  fi
+  info "Initializing TriliumNext (schema + admin password)…"
+  if TRILIUM_BASE_URL="http://127.0.0.1:$(_envget TRILIUM_PORT 8190)" \
+     ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-trilium.sh" >/dev/null 2>&1; then
+    ok "TriliumNext ready."
+  else
+    warn "TriliumNext init failed — retry later: scripts/init-trilium.sh"
+  fi
 }
 
 ensure_local_model() {
