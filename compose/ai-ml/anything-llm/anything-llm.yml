@@ -1,7 +1,7 @@
 services:
   anything-llm:
     image: mintplexlabs/anythingllm:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_anythingllm
+    container_name: anythingllm
     restart: unless-stopped
     profiles: [knowledge]
     ports:

@@ -27,7 +27,7 @@ services:
   # ═══════════════════════════════════════════════════════════════════════
   chromadb:
     image: chromadb/chroma:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_chromadb
+    container_name: chromadb
     restart: unless-stopped
     profiles: [extras]
     ports:

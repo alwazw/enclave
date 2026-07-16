@@ -26,7 +26,7 @@ else
 fi
 
 if [ ! -f "$DROPIN" ]; then
-  printf '# Redis requires this — see startup warning in docker logs aef2_redis\nvm.overcommit_memory = 1\n' > "$DROPIN"
+  printf '# Redis requires this — see startup warning in docker logs redis\nvm.overcommit_memory = 1\n' > "$DROPIN"
   echo "Persisted to ${DROPIN} (survives reboot)."
 else
   echo "${DROPIN} already exists — not overwriting."

@@ -1,7 +1,7 @@
 services:
   affine-migration:
     image: ghcr.io/toeverything/affine:stable
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_affine_migration
+    container_name: affine_migration
     restart: no
     profiles: [knowledge]
     # Labeled so onboard.sh's post-bring-up cleanup can prune it once it exits
@@ -29,7 +29,7 @@ services:
 
   affine:
     image: ghcr.io/toeverything/affine:stable
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_affine
+    container_name: affine
     restart: unless-stopped
     profiles: [knowledge]
     ports:

@@ -42,7 +42,7 @@ services:
   # ═══════════════════════════════════════════════════════════════════════
   mem0:
     image: mem0/mem0-api-server:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mem0
+    container_name: mem0
     restart: unless-stopped
     profiles: [memory]
     ports:

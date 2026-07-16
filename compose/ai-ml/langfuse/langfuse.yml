@@ -1,7 +1,7 @@
 services:
   langfuse:
     image: langfuse/langfuse:2
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_langfuse
+    container_name: langfuse
     restart: unless-stopped
     profiles: [core]
     ports:

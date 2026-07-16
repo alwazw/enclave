@@ -1,7 +1,7 @@
 services:
   flowise:
     image: flowiseai/flowise:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_flowise
+    container_name: flowise
     restart: unless-stopped
     profiles: [automation]
     ports:

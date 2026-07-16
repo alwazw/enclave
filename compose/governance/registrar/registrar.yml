@@ -4,7 +4,7 @@ services:
   registrar:
     build: ../../../registrar
     image: enclave/registrar:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_registrar
+    container_name: registrar
     restart: unless-stopped
     profiles: [core]
     ports:

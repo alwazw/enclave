@@ -1,7 +1,7 @@
 services:
   trilium:
     image: triliumnext/notes:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_trilium
+    container_name: trilium
     restart: unless-stopped
     profiles: [knowledge]
     ports:

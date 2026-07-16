@@ -1,7 +1,7 @@
 services:
   surrealdb:
     image: surrealdb/surrealdb:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_surrealdb
+    container_name: surrealdb
     restart: unless-stopped
     profiles: [core]
     user: root

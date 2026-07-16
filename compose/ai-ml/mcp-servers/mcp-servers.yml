@@ -47,7 +47,7 @@ x-mcp-healthcheck: &mcp-healthcheck
 services:
   mcp-filesystem:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_filesystem
+    container_name: mcp_filesystem
     restart: unless-stopped
     profiles: [core]
     command: >
@@ -63,7 +63,7 @@ services:
 
   mcp-memory:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_memory
+    container_name: mcp_memory
     restart: unless-stopped
     profiles: [core]
     command: >
@@ -100,7 +100,7 @@ services:
   # container's only job is running this one MCP server).
   mcp-fetch:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_fetch
+    container_name: mcp_fetch
     restart: unless-stopped
     profiles: [tools]
     command: >
@@ -116,7 +116,7 @@ services:
 
   mcp-github:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_github
+    container_name: mcp_github
     restart: unless-stopped
     profiles: [core]
     command: >
@@ -132,7 +132,7 @@ services:
 
   mcp-postgres:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_postgres
+    container_name: mcp_postgres
     restart: unless-stopped
     profiles: [core]
     command: >
@@ -155,7 +155,7 @@ services:
   # cleanly, and its env contract
   # (SURREALDB_URL/NS/DB/USER/PASS) matches what was already wired here.
   # BUT: end-to-end tested against our REAL running surrealdb container
-  # (aef2_surrealdb, image `surrealdb/surrealdb:latest` = v3.1.3) from a
+  # (surrealdb, image `surrealdb/surrealdb:latest` = v3.1.3) from a
   # throwaway container on aef2_database net — transport connects, auth
   # succeeds, and then the package's pinned `surrealdb` JS SDK (^1.3.2, only
   # version ever published, last npm release 2025-07-15 — effectively
@@ -173,7 +173,7 @@ services:
   # scoped task to patch/fork it.
   mcp-surrealdb:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_surrealdb
+    container_name: mcp_surrealdb
     restart: "no"
     profiles: [disabled]
     command: >
@@ -219,7 +219,7 @@ services:
   # fit for this compose architecture, over this candidate.
   mcp-docker:
     image: node:22-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcp_docker
+    container_name: mcp_docker
     restart: "no"
     profiles: [disabled]
     command: sh -c "echo 'mcp-docker is deliberately disabled — see comment above this service in compose/ai-ml/mcp-servers/mcp-servers.yml' && sleep infinity"

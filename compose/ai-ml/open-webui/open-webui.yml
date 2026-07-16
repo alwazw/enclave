@@ -1,7 +1,7 @@
 services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_open_webui
+    container_name: open_webui
     restart: unless-stopped
     profiles: [core]
     ports:

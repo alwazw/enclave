@@ -22,7 +22,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
 BACKUP_ROOT="${BACKUP_ROOT:-$REPO_ROOT/backups}"
-CONTAINER="${PG_CONTAINER:-aef2_postgres}"
+CONTAINER="${PG_CONTAINER:-postgres}"
 RETENTION="${RETENTION:-14}"          # keep this many dated backup dirs
 # Service databases to dump (globals are handled separately).
 DBS=(aef2 litellm n8n affine flowise langfuse mem0)

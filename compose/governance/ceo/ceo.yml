@@ -6,7 +6,7 @@ services:
   ceo-demo-widgets:
     build: ../../../ceo
     image: enclave/ceo:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_ceo_demo_widgets
+    container_name: ceo_demo_widgets
     profiles: [ceo]
     volumes:
       - demo_widgets_site:/workspace
@@ -22,7 +22,7 @@ services:
 
   demo-widgets-web:
     image: nginx:alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_demo_widgets_web
+    container_name: demo_widgets_web
     restart: unless-stopped
     profiles: [ceo]
     volumes:

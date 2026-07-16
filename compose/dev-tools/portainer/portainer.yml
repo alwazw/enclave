@@ -6,7 +6,7 @@ services:
     # why the healthcheck below always errored. The alpine tag is an official
     # Portainer-published variant that retains wget for exactly this case.
     image: portainer/portainer-ce:2.43.0-alpine
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_portainer
+    container_name: portainer
     restart: unless-stopped
     profiles: [tools]
     ports:

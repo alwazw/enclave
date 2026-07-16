@@ -1,7 +1,7 @@
 services:
   searxng:
     image: searxng/searxng:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_searxng
+    container_name: searxng
     restart: unless-stopped
     profiles: [core]
     ports:

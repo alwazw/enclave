@@ -1,7 +1,7 @@
 services:
   hermes:
     image: nousresearch/hermes-agent:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_hermes
+    container_name: hermes
     restart: unless-stopped
     profiles: [core]
     # ── Run mode ────────────────────────────────────────────────────────────
@@ -12,7 +12,14 @@ services:
     # runtime. The command first reconciles config.yaml (init-config.sh merges
     # our committed override fragment into $HERMES_HOME/config.yaml, which the
     # image seeds/migrates itself), then execs the gateway daemon.
-    command: ["sh", "-c", "sh /hermes-init.sh; (hermes gateway restart >/dev/null 2>&1 || hermes gateway run --no-supervise &); exec sleep infinity"]
+    # Newer hermes-agent:latest builds auto-manage the gateway via s6 +
+    # hermes_cli.container_boot (persisted per-profile "running" state on the
+    # volume) — exec'ing a manual "hermes gateway run"/"restart" here now
+    # conflicts with it ("A gateway is already running under s6") and
+    # crash-loops the container (verified live on local-stack, the deployed
+    # instance this repo mirrors). Only run the config-merge step; let the
+    # image's own s6 supervision own the gateway process.
+    command: ["sh", "-c", "sh /hermes-init.sh; sleep infinity"]
     volumes:
       # HERMES_HOME is /opt/data (NOT /root/.hermes) — this is where the image
       # actually persists config, sessions, kanban, memory, skills.
@@ -29,6 +36,10 @@ services:
       HERMES_NAME: ${HERMES_NAME:-Hermes}
       HERMES_HOME: /opt/data
       GATEWAY_ALLOW_ALL_USERS: "true"
+      # #27: this was missing entirely — hermes expects TELEGRAM_BOT_TOKEN
+      # verbatim (confirmed via `hermes config check`), and no Telegram
+      # credential was ever wired through regardless of what .env held.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_ALLOWED_USERS: ${TELEGRAM_ID}
 
       # ── LLM — routes through LiteLLM (never direct to Ollama) ──────────────

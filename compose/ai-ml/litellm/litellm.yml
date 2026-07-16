@@ -1,7 +1,7 @@
 services:
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_litellm
+    container_name: litellm
     restart: unless-stopped
     profiles: [core]
     ports:

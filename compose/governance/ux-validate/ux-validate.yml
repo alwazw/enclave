@@ -5,7 +5,7 @@ services:
   ux-validate:
     build: ../../../ux-validate
     image: enclave/ux-validate:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_ux_validate
+    container_name: ux_validate
     restart: unless-stopped
     profiles: [core]
     ports:

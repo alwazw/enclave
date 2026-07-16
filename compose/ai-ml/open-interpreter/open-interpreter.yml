@@ -13,7 +13,7 @@ services:
   # to build and maintain a custom image from source.
   open-interpreter:
     image: openinterpreter/open-interpreter:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_open_interpreter
+    container_name: open_interpreter
     restart: unless-stopped
     profiles: [disabled]
     ports:

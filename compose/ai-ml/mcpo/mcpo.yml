@@ -1,7 +1,7 @@
 services:
   mcpo:
     image: ghcr.io/open-webui/mcpo:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_mcpo
+    container_name: mcpo
     restart: unless-stopped
     profiles: [core]
     # Inject .env so ${SURREALDB_PASS}/${POSTGRES_*}/${GITHUB_TOKEN} referenced in

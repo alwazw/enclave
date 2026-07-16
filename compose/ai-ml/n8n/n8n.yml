@@ -1,7 +1,7 @@
 services:
   n8n:
     image: n8nio/n8n:latest
-    container_name: ${COMPOSE_PROJECT_NAME:-aef2}_n8n
+    container_name: n8n
     restart: unless-stopped
     profiles: [automation]
     ports:

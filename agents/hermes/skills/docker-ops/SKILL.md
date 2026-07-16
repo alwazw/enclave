@@ -29,8 +29,8 @@ Manages the AEF2 Docker stack using the `docker` MCP server (which has access to
 ```
 
 ## Container Naming Convention
-All containers follow the pattern: `${COMPOSE_PROJECT_NAME:-aef2}_<service>`.
-Examples: `aef2_hermes`, `aef2_litellm`, `aef2_postgres`, `aef2_n8n`
+Containers are named directly after their service (no project prefix — see #24).
+Examples: `hermes`, `litellm`, `postgres`, `n8n`
 
 ## Profile → Services Map
 | Profile | Services |
@@ -56,7 +56,7 @@ Examples: `aef2_hermes`, `aef2_litellm`, `aef2_postgres`, `aef2_n8n`
 
 ## Safety Guardrails
 - **NEVER** execute `docker rm`, `docker rmi`, `docker system prune` without explicit user confirmation
-- **NEVER** stop or restart `aef2_postgres`, `aef2_redis`, or `aef2_surrealdb` without warning that data services will be interrupted
+- **NEVER** stop or restart `postgres`, `redis`, or `surrealdb` without warning that data services will be interrupted
 - **ALWAYS** confirm before writing files inside containers
 - **READ-ONLY by default**: inspect and logs operations need no confirmation; mutations (exec, restart) require user approval
 
