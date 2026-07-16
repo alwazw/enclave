@@ -54,6 +54,18 @@ Examples: `hermes`, `litellm`, `postgres`, `n8n`
    - Volume permission error → check mount paths
 5. Propose fix → confirm with user → apply (restart or exec)
 
+## Gotcha: `docker exec` into hermes defaults to HOME=/root, not /opt/data
+A plain `docker exec hermes <cmd>` runs with `HOME=/root` (the container's own
+ephemeral root filesystem) — it does NOT go through the `with-contenv`
+wrapper the container's own supervised services use, which sets
+`HOME=/opt/data` (the real persistent volume, `HERMES_HOME`). Any `hermes`
+subcommand that reads/writes `~`-relative paths (`hermes doctor --fix`,
+`hermes setup`, etc.) will silently target the wrong, non-persistent
+location if you forget this — the command appears to succeed, but the fix
+vanishes on the next container recreation (bit both #27 and #28 this way:
+a prior session verified a fix "worked," but it had written to `/root/...`
+instead of `/opt/data/...`). Always prefix: `HOME=/opt/data hermes <cmd>`.
+
 ## Safety Guardrails
 - **NEVER** execute `docker rm`, `docker rmi`, `docker system prune` without explicit user confirmation
 - **NEVER** stop or restart `postgres`, `redis`, or `surrealdb` without warning that data services will be interrupted
