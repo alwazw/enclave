@@ -56,6 +56,21 @@ Host IP for this box is **$HOST_IP**. Run ALL of:
    Choose the check that matches what the service depends on. A web UI that
    returns 200 but whose backend DB is unreachable is **not** done.
 
+   **Liveness is not the same check as this one — do not let a liveness ping
+   satisfy step 4.** A `/health` or `/health/liveliness` endpoint, an MCP
+   `tools/list` handshake, or hitting a route with the ADMIN/MASTER
+   credential all prove the process is up and *a* connection works — they do
+   NOT prove the specific credential/protocol/data-plane path real callers
+   actually use is wired correctly. This is exactly how #22 (`LITELLM_API_KEY`
+   was never a real credential) survived a full deep-validate sweep: every
+   check touching LiteLLM used the master key or an unauthenticated endpoint,
+   never the actual virtual key 7 dependent services use. Step 4 must
+   exercise the SAME credential/call the real dependent makes — an MCP tool
+   must actually run (not just enumerate), a queue must actually enqueue/
+   dequeue a job (not just PING), a vector store must actually write+read a
+   real record (not just list collections), an LLM gateway must be hit with
+   the service's own configured key (not the master/admin key).
+
 ### context: code  (a code change)
 Reuse the built-in **`verify`** skill's philosophy: drive the affected flow
 end-to-end and OBSERVE the new behavior — do not stop at "tests pass".
