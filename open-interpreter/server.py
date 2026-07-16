@@ -55,10 +55,18 @@ if base_url:
     interpreter.llm.api_base = base_url
 if api_key:
     interpreter.llm.api_key = api_key
-# litellm needs an explicit provider prefix to hit a custom api_base as an
-# OpenAI-compatible endpoint instead of trying to resolve the bare name
-# against a known provider's model list.
-interpreter.llm.model = model if "/" in model else f"openai/{model}"
+# The litellm PYTHON LIBRARY (not our litellm server) treats a leading
+# "openai/" as its own client-side routing hint ("use the generic
+# OpenAI-compatible adapter for this api_base") and STRIPS exactly that one
+# layer before sending the `model` field upstream — confirmed empirically:
+# model="openai/morpheus-main-model" arrived at our litellm server as just
+# "morpheus-main-model", which then failed the virtual key's model-allowlist
+# check (the key's allowed list has the full "openai/morpheus-main-model"
+# name). This stack's own model aliases (config/litellm/config.yml) already
+# bake "openai/" into the alias name itself, so the outer routing-hint layer
+# always needs to be added on top, regardless of what INTERPRETER_DEFAULT_MODEL
+# already contains — hence unconditional prepend, not "only if no slash".
+interpreter.llm.model = f"openai/{model}"
 
 # INTERPRETER_SAFE_MODE=off (this stack's existing convention) means "do not
 # gate on a human confirmation before running code" -> auto_run True. This

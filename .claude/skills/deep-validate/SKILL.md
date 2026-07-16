@@ -49,12 +49,27 @@ Host IP for this box is **10.10.10.27**. Run ALL of:
    and confirm restart count is stable:
    `docker inspect -f '{{.RestartCount}}' <name>`
 4. **In-container dependency check** — exec INTO the container and confirm it
-   reaches the dependency it needs (the whole point of the service):
+   reaches the dependency it needs (the whole point of the service), using
+   the REAL credential/protocol the service actually uses in production —
+   not a liveness ping:
    - DB-backed: `docker exec <name> <db-client> -e 'SELECT 1'` / a real query
-   - API/upstream: `docker exec <name> curl -fsS <upstream>/health`
+   - Authenticated API/upstream: an actual authenticated request using the
+     service's real configured credential (e.g. its actual API key env var,
+     not an admin/master key you happen to have on hand) hitting a real
+     operation — `curl -fsS <upstream>/health` is NOT this check; a `/health`
+     endpoint is almost always unauthenticated and proves nothing about
+     whether the real credential works. (2026-07-16: a stack-wide broken
+     credential shared by 7 services survived an entire deep-validate sweep
+     because every check against it was a `/health` ping or used the master
+     key instead of the real one — see the local-stack repo's issue #22/#23.)
+   - MCP servers: an actual tool *call* (read a real file, run a real query),
+     not just the `tools/list` handshake — listing tools proves the server
+     enumerates capabilities, not that invoking one works.
    - volume/state: `docker exec <name> sh -c 'touch /data/.probe && rm /data/.probe && echo writable'`
    Choose the check that matches what the service depends on. A web UI that
-   returns 200 but whose backend DB is unreachable is **not** done.
+   returns 200 but whose backend DB is unreachable is **not** done. Neither is
+   a service whose only "connection check" was a health endpoint that doesn't
+   exercise the credential/protocol path real traffic actually uses.
 
 ### context: code  (a code change)
 Reuse the built-in **`verify`** skill's philosophy: drive the affected flow

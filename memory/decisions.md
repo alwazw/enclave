@@ -171,3 +171,35 @@ warnings in MCP server packages, individual SearXNG search-engine timeouts, Surr
 "root user already exists" message). Documented the triage reasoning rather than silently
 ignoring findings, per this session's now-established "read the whole log, decide explicitly"
 discipline.
+
+## 2026-07-16 — LITELLM_API_KEY was never real; validation depth was insufficient to catch it
+Chairman spotted from the Open WebUI UI that no LiteLLM fallback models were listed despite
+a "pre-loaded" API key. Investigation found the actual bug was stack-wide, not UI-specific:
+`LITELLM_API_KEY` (shared by 7 services: hermes, n8n, flowise, anything-llm, open-interpreter,
+open-webui, the ceo agent) was never a real, registered LiteLLM credential — 401 "Unable to
+find token in ... LiteLLM_VerificationTokenTable". `scripts/onboard.sh` has
+`provision_guardrail_key()` to mint a real one; never executed since the stack was brought up
+manually this session, not via the full onboard.sh wizard. Chairman confirmed minting a real
+key ($2/30-day budget, free-tier model allowlist, matching onboard.sh's own design) and
+rolling it to all 6 live dependent containers. Found and fixed two more real bugs along the
+way: Open WebUI persists its OpenAI connection config to its own DB and ignores env var
+changes after first boot (had to push the new key via its actual admin API,
+`POST /openai/config/update`); Open Interpreter's litellm-library client strips one `openai/`
+prefix layer before hitting a custom api_base, colliding with this stack's aliases already
+having `openai/` baked into the name (fixed in `open-interpreter/server.py`, unconditional
+prepend rather than conditional).
+
+Chairman then directly challenged how this was missed given a "massively long" validation
+pass already ran tonight: correctly — every earlier check touching LiteLLM was either an
+unauthenticated `/health`/`/health/liveliness` ping or used the master key rather than each
+service's actual credential. Audited honestly: 4 of the 7 affected services got real
+functional re-verification (LiteLLM direct, Open WebUI's authenticated `/api/models`, Open
+Interpreter's real completions endpoint, Hermes's actual CLI chat round-trip). n8n/Flowise/
+AnythingLLM only got credential-match confirmation, not a real workflow/chatflow/chat
+execution — a first attempt at an n8n workflow-level test was correctly blocked by the
+permission system for embedding the live key in a persistent, queryable node rather than
+using n8n's credential store. Filed as two GitHub issues (#22 resolved/closed, #23 open —
+the validation-gap checklist) rather than either quietly patching or claiming full coverage.
+Also amended `.claude/skills/deep-validate/SKILL.md` step 4 directly so this class of gap is
+harder to reproduce: explicitly distinguishes liveness checks from real credential/protocol
+checks now, with this incident cited inline.
