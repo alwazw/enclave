@@ -25,6 +25,10 @@ services:
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
       TELEMETRY_ENABLED: "false"
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+      # Next.js standalone server binds to $HOSTNAME if set; Docker auto-sets
+      # HOSTNAME to the container ID, which isn't reachable via localhost —
+      # breaks the healthcheck and any localhost-based connection. Force 0.0.0.0.
+      HOSTNAME: "0.0.0.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,7 +40,10 @@ services:
       homepage.description: LLM tracing + cost analytics — every Hermes/n8n/Flowise call tracked
     networks: [frontend-net, backend-net, database-net]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/public/health"]
+      # 127.0.0.1, not localhost: this image's wget resolves "localhost" to
+      # ::1 first, and the Next.js server only binds the IPv4 wildcard —
+      # IPv6 loopback gets refused even though the app is genuinely healthy.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/public/health"]
       interval: 30s
       timeout: 10s
       retries: 5
