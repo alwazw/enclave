@@ -165,6 +165,16 @@ The Homepage dashboard (running on port `3030`) by default has strict host valid
 
 **Fix:** The `HOMEPAGE_ALLOWED_HOSTS` environment variable has been explicitly set in `compose/productivity/homepage/homepage.yml` to include both `localhost:3030` and the typical LAN IP address, allowing flexible access. If you use a different LAN IP or hostname, you may need to adjust this variable in your `.env` file and restart Homepage.
 
+### Redis: Enable Kernel Memory Overcommit
+
+Redis logs `WARNING Memory overcommit must be enabled!` on every boot if the host kernel's `vm.overcommit_memory` isn't set to `1`. This Redis instance backs n8n's job queue and AFFiNE's session store (not a pure cache — see `compose/database/redis/redis.yml`'s `noeviction` policy), so a failed background save under memory pressure is a real risk, not cosmetic.
+
+**Fix (host-level, one-time, not automated by `setup.sh`):**
+```bash
+sudo sysctl vm.overcommit_memory=1
+echo "vm.overcommit_memory = 1" | sudo tee -a /etc/sysctl.conf   # persist across reboots
+```
+
 ### SearXNG Port Conflict
 
 SearXNG (a meta-search engine) previously attempted to bind to port `8080`, which conflicted with the `MCPO Bridge` service. Additionally, its internal configuration expected port `8080`, while the exposed port was different.

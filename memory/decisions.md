@@ -153,3 +153,21 @@ completeness. Also filed (open, not implemented) a feature-request issue per Cha
 recommendation: scheduled stack-wide update/dependency-drift checks, and a single-source-of-truth
 requirements file so docs and the installer can't silently diverge from each other the way this
 one did.
+
+## 2026-07-16 — Full-log audit (not just tails) across all 30 containers, per Chairman's process challenge
+Following the affine_migration/Redis-eviction lesson, grepped every running container's FULL log
+(not tail) for WARN/FATAL/IMPORTANT/deprecated. Found and fixed: (1) Redis's kernel host lacked
+`vm.overcommit_memory=1` (Redis's own documented requirement, risking failed BGSAVE under memory
+pressure — exactly the condition a 30-container host is prone to). Chairman confirmed this
+host-wide kernel change explicitly; applied live + persisted in /etc/sysctl.conf. (2) Open WebUI's
+CORS_ALLOW_ORIGIN defaults to `*` (the app's own insecure default, not set by this repo) — filed
+as an open issue (#17) rather than fixed live, since severity is lower for this stack's LAN-only
+deployment model and warranted its own scoped decision rather than a rushed compose change this
+late in an already-large session. Everything else surfaced by the full-log sweep was triaged as
+either already-known (AFFiNE mailer/copilot warnings, Weaviate single-node Raft noise — both
+already documented pre-existing limitations), stale (Postgres auth-failure lines from *before*
+tonight's password-drift fix, not current), or genuinely benign upstream noise (npm deprecation
+warnings in MCP server packages, individual SearXNG search-engine timeouts, SurrealDB's expected
+"root user already exists" message). Documented the triage reasoning rather than silently
+ignoring findings, per this session's now-established "read the whole log, decide explicitly"
+discipline.
