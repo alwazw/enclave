@@ -4,6 +4,14 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-aef2}_affine_migration
     restart: no
     profiles: [knowledge]
+    # Labeled so onboard.sh's post-bring-up cleanup can prune it once it exits
+    # 0 — a one-shot migration job showing "Exited" in Homepage/Portainer reads
+    # as "down" to anyone glancing at the dashboard, even though exit 0 means
+    # success. Safe to remove: `depends_on: service_completed_successfully`
+    # only gates the FIRST bring-up; a later `docker compose up` recreates and
+    # reruns this (idempotent migration script) before starting affine again.
+    labels:
+      aef2.oneshot: "true"
     command: ["sh", "-c", "node ./scripts/self-host-predeploy.js"]
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB_AFFINE:-affine}"

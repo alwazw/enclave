@@ -645,6 +645,17 @@ bring_up() {
   # TriliumNext needs its first-run setup wizard driven headlessly, or it sits
   # at an unusable setup screen forever (see scripts/init-trilium.sh).
   ensure_trilium_initialized "$proj"
+
+  # One-shot job containers (e.g. affine-migration) sit "Exited" forever
+  # after a successful run — reads as "down" in Homepage/Portainer even
+  # though exit 0 means success. Safe to remove: compose recreates and
+  # reruns them (idempotent) on the next full bring-up.
+  local exited_jobs
+  exited_jobs=$(docker ps -a --filter "label=aef2.oneshot=true" --filter "status=exited" -q)
+  if [[ -n "$exited_jobs" ]]; then
+    echo "$exited_jobs" | xargs -r docker rm >/dev/null
+    ok "Cleaned up $(echo "$exited_jobs" | wc -l) completed one-shot job container(s)."
+  fi
 }
 
 ensure_openwebui_admin_claimed() {

@@ -8,17 +8,17 @@ services:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    # allkeys-lru would silently evict ANY key once maxmemory is hit — this
+    # Redis instance isn't pure cache: n8n's BullMQ queue jobs and AFFiNE
+    # sessions live here too, and neither can tolerate silent eviction.
+    # noeviction rejects writes with a loud OOM error instead, which is
+    # observable/alertable rather than silent data loss.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD}
       --save 60 1
       --loglevel warning
       --maxmemory 512mb
-      # allkeys-lru would silently evict ANY key once maxmemory is hit — this
-      # Redis instance isn't pure cache: n8n's BullMQ queue jobs and AFFiNE
-      # sessions live here too, and neither can tolerate silent eviction.
-      # noeviction rejects writes with a loud OOM error instead, which is
-      # observable/alertable rather than silent data loss.
       --maxmemory-policy noeviction
     labels:
       homepage.group: Databases
