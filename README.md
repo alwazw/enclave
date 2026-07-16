@@ -159,7 +159,7 @@ Crucial environment variables (e.g., `N8N_ENCRYPTION_KEY`, `LANGFUSE_ENCRYPTION_
 
 ### Homepage Host Validation
 
-The Homepage dashboard (running on port `3030`) by default has strict host validation, which can prevent access when trying to reach it via a local IP address (e.g., `http://10.0.0.10:3030`).
+The Homepage dashboard (running on port `3030`) by default has strict host validation, which can prevent access when trying to reach it via a local IP address (e.g., `http://$HOST_IP:3030`).
 
 **Symptom:** Accessing Homepage via LAN IP results in `Host validation failed` errors in the container logs and a `400 Bad Request` in the browser.
 

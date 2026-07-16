@@ -348,7 +348,22 @@ generate_env() {
     ok "Created .env from .env.example"
   fi
 
-  # 3a. Auto-generate every internal secret placeholder.
+  # 3a. Auto-detect the host's real LAN IP — must run BEFORE the generic
+  #     <CHANGE_ME> sweep below, or that loop would overwrite HOST_IP with a
+  #     random hex secret instead of a real IP.
+  if grep -qE '^HOST_IP=(<CHANGE_ME>|10\.0\.0\.10)$' "$ENV_FILE"; then
+    local detected
+    detected=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]*\).*/\1/p')
+    [[ -z "$detected" ]] && detected=$(hostname -I 2>/dev/null | awk '{print $1}')
+    if [[ -n "$detected" ]]; then
+      set_env "HOST_IP" "$detected"
+      ok "Auto-detected HOST_IP: ${detected}"
+    else
+      warn "Could not auto-detect a LAN IP — set HOST_IP manually in .env."
+    fi
+  fi
+
+  # 3b. Auto-generate every internal secret placeholder.
   #     Handles BOTH <CHANGE_ME> and <CHANGE_ME_32CHARS> (setup.sh missed the latter).
   local changed=0 var val line
   while IFS= read -r line; do
@@ -361,13 +376,13 @@ generate_env() {
   done < "$EXAMPLE_FILE"
   ok "Generated $changed internal secrets (passwords, encryption + API keys)."
 
-  # 3b. Trilium ships a literal weak default — regenerate it too.
+  # 3c. Trilium ships a literal weak default — regenerate it too.
   if grep -qE '^TRILIUM_PASSWORD=change-me-strong-password$' "$ENV_FILE"; then # gitleaks:allow
     set_env "TRILIUM_PASSWORD" "$(gen_password)"
     ok "Generated Trilium admin password."
   fi
 
-  # 3c. GUARDRAIL: on a fresh install EVERY paid provider key stays BLANK.
+  # 3d. GUARDRAIL: on a fresh install EVERY paid provider key stays BLANK.
   #     .env.example already ships them blank; we re-assert it so a re-run of the
   #     free path can never leave a paid key wired.
   if [[ "$PATH_CHOICE" == "free" ]]; then
@@ -376,7 +391,7 @@ generate_env() {
     ok "Guardrail: all ${#PAID_PROVIDER_KEYS[@]} paid-provider keys left blank (cannot bill)."
   fi
 
-  # 3d. Path-specific prompting.
+  # 3e. Path-specific prompting.
   if [[ "$PATH_CHOICE" == "free" ]]; then
     collect_free_keys
   else

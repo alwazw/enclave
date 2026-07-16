@@ -11,7 +11,7 @@ came up".
 `docker ps` reporting `healthy` is not proof a service works. This system
 refuses to let a task reach **done** until deep validation has been run and its
 evidence recorded — for a web service that means the endpoint actually answers
-on `10.0.0.10:PORT`, the logs are clean since start, and an in-container
+on `$HOST_IP:PORT`, the logs are clean since start, and an in-container
 check confirms it reaches its real DB/API/volume. The same "prove the effect,
 in context" rule applies to code, config, data, and network tasks.
 
@@ -40,7 +40,7 @@ pm/
 ```bash
 # create a task (context ∈ docker|code|config|data|network|other)
 python3 pm/pm.py new --title "Deploy Homepage" --context docker \
-        --service homepage --endpoint http://10.0.0.10:3030 \
+        --service homepage --endpoint http://$HOST_IP:3030 \
         --budget 30 --objective "Dashboard reachable and showing widgets"
 
 python3 pm/pm.py move  T-0001 doing        # stamps started_at (starts the clock)
