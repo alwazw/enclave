@@ -614,6 +614,15 @@ bring_up() {
   local flags=(); IFS=',' read -ra parr <<< "$PROFILES"
   for p in "${parr[@]}"; do flags+=(--profile "$p"); done
 
+  # #30: hermes.yml bind-mounts agents/hermes/SOUL.md read-only — the
+  # container can never render its own persona template, so HERMES_NAME/
+  # PRODUCT_NAME substitution has to happen host-side, before this mount
+  # takes effect.
+  if [[ -f "$REPO_DIR/agents/hermes/render-soul.sh" ]]; then
+    ENV_FILE="$ENV_FILE" bash "$REPO_DIR/agents/hermes/render-soul.sh" || \
+      warn "Failed to render Hermes' persona file — it will keep using whatever SOUL.md already has on disk."
+  fi
+
   info "Bringing up profile(s): ${BOLD}${PROFILES}${NC}"
   info "Databases and the LiteLLM gateway start first…"
   ( cd "$REPO_DIR" && "${DOCKER_COMPOSE[@]}" -f "$COMPOSE_FILE" \

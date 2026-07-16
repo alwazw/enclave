@@ -1,6 +1,6 @@
 #!/bin/sh
 # ─────────────────────────────────────────────────────────────────────────────
-# Hermes boot-time config reconciler (AEF2 local stack)
+# Hermes boot-time config reconciler (Enclave local stack)
 #
 # Deep-merges the committed override fragment (hermes-config.yaml, mounted at
 # /hermes-config.yaml) into $HERMES_HOME/config.yaml, which Hermes itself seeds

@@ -2,7 +2,7 @@
 **Trigger:** User wants to inspect, manage, troubleshoot, restart, or interact with Docker containers in the stack.
 
 ## Overview
-Manages the AEF2 Docker stack using the `docker` MCP server (which has access to the Docker socket). Provides safe, structured container operations with guardrails against destructive actions.
+Manages the Enclave Docker stack using the `docker` MCP server (which has access to the Docker socket). Provides safe, structured container operations with guardrails against destructive actions.
 
 ## Available Operations via `docker` MCP
 

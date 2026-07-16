@@ -2,7 +2,7 @@
 **Trigger:** User wants to store, retrieve, query, or graph-traverse knowledge in SurrealDB — the stack's central multi-model database.
 
 ## Overview
-SurrealDB serves as the durable long-term memory and knowledge graph layer for the AEF2 stack. This skill handles structured knowledge storage (documents, entities, relations, KV), graph traversal, and hybrid queries combining SQL + graph + vector operations.
+SurrealDB serves as the durable long-term memory and knowledge graph layer for the Enclave stack. This skill handles structured knowledge storage (documents, entities, relations, KV), graph traversal, and hybrid queries combining SQL + graph + vector operations.
 
 ## Connection Details
 - **Endpoint:** `http://surrealdb:8000/sql`

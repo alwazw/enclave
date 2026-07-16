@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Hermes Agent — config override fragment (AEF2 local stack)
+# Hermes Agent — config override fragment (Enclave local stack)
 #
 # This is NOT the full Hermes config. It is DEEP-MERGED into
 # $HERMES_HOME/config.yaml (/opt/data/config.yaml) at container boot by
