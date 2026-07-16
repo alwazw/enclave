@@ -29,6 +29,7 @@ services:
       HERMES_NAME: ${HERMES_NAME:-Hermes}
       HERMES_HOME: /opt/data
       GATEWAY_ALLOW_ALL_USERS: "true"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_ALLOWED_USERS: ${TELEGRAM_ID}
 
       # ── LLM — routes through LiteLLM (never direct to Ollama) ──────────────

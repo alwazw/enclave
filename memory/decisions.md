@@ -203,3 +203,41 @@ the validation-gap checklist) rather than either quietly patching or claiming fu
 Also amended `.claude/skills/deep-validate/SKILL.md` step 4 directly so this class of gap is
 harder to reproduce: explicitly distinguishes liveness checks from real credential/protocol
 checks now, with this incident cited inline.
+
+## 2026-07-16 — Telegram wiring + LiteLLM router auth-retry bug (Chairman-directed, both filed)
+Chairman updated the Telegram bot token and asked which of two .env vars (TELEGRAM_BOT_TOKEN
+vs the stray Hermes_Morheus1_bot) was actually wired to Hermes. Neither was — hermes.yml only
+ever passed TELEGRAM_ALLOWED_USERS through; confirmed via `hermes config check` that the
+literal expected var name is TELEGRAM_BOT_TOKEN (matching .env's own naming), just never
+plumbed into the container. Wired it in, recreated hermes — token confirmed valid via a live
+Telegram getMe call, but Hermes's own Telegram adapter now hangs indefinitely at "Connecting
+to Telegram (attempt 1/8)" with zero further output, reproduced on a clean restart. Ruled out
+network/DNS-over-HTTPS/token validity as causes; Hermes's core chat function is unaffected
+(isolated to the one platform adapter). Root cause not found — no readable source for the
+adapter inside the container. Filed as GitHub issue #27, left open.
+
+Separately, Chairman challenged an Open WebUI screenshot showing two different underlying
+models answering under the same "openai/morpheus-main-model" alias across two messages
+(Gemini, then NVIDIA Nemotron) and asserted this shouldn't happen — fallbacks were designed to
+skip individual bad/rate-limited deployments and rotate within the same tier, not just cascade
+whole tiers. Investigated by reading the actual litellm 1.92.0 router source in the running
+container: confirmed the cross-tier cascade (main-model -> tier2 -> openrouter-free -> ...)
+works correctly and the alarming "No fallback model group found" log line is benign recursive-
+lookup noise, not an abort. But found a real, separate bug: `retry_policy.
+AuthenticationErrorRetries: 0` in config/litellm/litellm.yml (mounted as config.yml via
+symlink) meant the router never got a chance to rotate to a healthy sibling deployment when
+one pool member (ALIBABA_MODELSTUDIO_KEY_1, confirmed invalid) raised an auth error — it just
+failed the whole request outright, ~10-25% of the time depending on load-balancer luck. Fixed
+by raising AuthenticationErrorRetries to 3 AND disabling (commenting out, not deleting) both
+Alibaba deployments since the key itself is dead and even retries don't get to 0% failure with
+a permanently-broken pool member present. Verified empirically: 0/15 and 0/5 failures across
+two model groups after the fix, vs 1/4 and 1/10 before. Filed as GitHub issue #26, closed.
+Also corrected an earlier memory note (see memory/departments/devops.md) that had wrongly
+called config.yml/litellm.yml "near-duplicates" needing cleanup — they're symlinked, the same
+file, nothing to reconcile.
+
+Chairman also set a standing instruction (not scoped to this session): every error, bug,
+misconfiguration, or issue found in this repo going forward must be filed as a GitHub issue
+with resolution/analysis/findings, without needing to be asked each time. Saved to personal
+cross-session memory (not this repo's memory/, since it's a standing behavioral instruction
+for the assistant, not project state) — see feedback_file_everything_as_issues.md.

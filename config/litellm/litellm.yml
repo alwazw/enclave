@@ -57,10 +57,15 @@ model_list:
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3" }
     rpm: 15
     tpm: 1000000
-  - model_name: openai/morpheus-main-tier2
-    litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
-    rpm: 20
-    tpm: 60000
+  # 2026-07-16: ALIBABA_MODELSTUDIO_KEY_1 confirmed invalid (DashscopeException -
+  # "Incorrect API key provided" on every call, not rate-limited or transient).
+  # Disabled rather than left in the pool -- even with retries enabled, a dead
+  # deployment gets a nonzero chance of being routed to on any given request.
+  # Restore once a valid key is set in .env.
+  # - model_name: openai/morpheus-main-tier2
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
   - model_name: openai/morpheus-main-tier2
     litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
     rpm: 30
@@ -79,10 +84,13 @@ model_list:
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3", response_format: { type: "json_object" } }
     rpm: 15
     tpm: 1000000
-  - model_name: openai/morpheus-utility-model
-    litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
-    rpm: 20
-    tpm: 60000
+  # 2026-07-16: ALIBABA_MODELSTUDIO_KEY_1 confirmed invalid (DashscopeException -
+  # "Incorrect API key provided" on every call) -- disabled here too. Restore once
+  # a valid key is set in .env.
+  # - model_name: openai/morpheus-utility-model
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
   # Backward-compat: historic 'utitlity' typo alias → same as utility
   - model_name: openai/morpheus-utitlity-model
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1" }
@@ -187,11 +195,19 @@ router_settings:
   allowed_fails: 1
   optional_pre_call_checks:
     - enforce_model_rate_limits
-  # Auth failures (e.g. an empty/rotated key in a pool) must NOT burn retries on the
-  # same dead deployment — 0 retries → router immediately tries the next deployment,
-  # then the next tier in fallbacks. Rate/timeout/5xx get a couple retries first.
+  # 2026-07-16: AuthenticationErrorRetries=0 was previously set here on the (incorrect,
+  # empirically disproven) assumption that "0 retries" means "router immediately tries
+  # the next deployment in the same pool." It does not -- 0 retries means the router
+  # never engages its own retry/cooldown/load-balancing loop at all for that error type,
+  # so ANY single bad key in a pool (e.g. a rotated/invalid Alibaba key) makes the WHOLE
+  # model_group fail outright on every request that happens to route to it, instead of
+  # rotating to a healthy sibling deployment. Confirmed live: 1/4 direct requests to
+  # openai/morpheus-main-tier2 (5-deployment pool, one dead Alibaba key) failed outright
+  # with 0 retries; a positive retry count is required for the router to actually try
+  # another deployment in the pool. Kept small (not the general num_retries=5) so a truly
+  # dead deployment still fails fast rather than burning excessive attempts on it.
   retry_policy:
-    AuthenticationErrorRetries: 0
+    AuthenticationErrorRetries: 3
     RateLimitErrorRetries: 2
     TimeoutErrorRetries: 2
     InternalServerErrorRetries: 2

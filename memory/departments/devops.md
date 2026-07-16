@@ -35,13 +35,15 @@ Session in progress; picking this up cold, check current `docker ps -a` and this
 - mem0 and open-interpreter both excluded from the `memory` profile bring-up until the above
   lands; re-include open-interpreter once its build is verified.
 
-**Config file hygiene note:** `config/litellm/litellm.yml`, `config/litellm/config.yml`, and
-`config/litellm/setup-default-config.yaml` are near-duplicates. Only `config.yml` is actually
-mounted (`compose/ai-ml/litellm/litellm.yml` volumes `../../../config/litellm/config.yml`).
-The other two are stale/reference copies — worth deleting or clearly marking dead in a future
-pass so nobody edits the wrong one again (already happened once: the model-alias typo
-`morpheus-utitlity-model` exists identically in both litellm.yml and config.yml, suggesting a
-copy-paste, not independent drift).
+**Config file correction (2026-07-16):** an earlier entry here called `config/litellm/
+litellm.yml` and `config/litellm/config.yml` "near-duplicates" needing de-duplication — that
+was wrong, checked more carefully while fixing the router retry-policy bug. `config.yml` is
+a **symlink to litellm.yml** (`config.yml -> litellm.yml`), i.e. the literal same file, not
+independent copies — editing one edits both, and there's nothing to reconcile. `git mv`/`ln`
+can't write through the symlink directly (Edit/Write tools refuse it) — always edit
+`litellm.yml`, the real target, never `config.yml`. `config/litellm/setup-default-config.yaml`
+is a genuinely separate, unmounted, stale reference file — that part of the original note
+still holds.
 
 ## 2026-07-15 — Open Interpreter: build-from-source landed, contract verified end to end
 Landed the staged Dockerfile/wrapper (`agents/open-interpreter/` was the planned path; actually
