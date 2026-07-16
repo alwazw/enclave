@@ -187,11 +187,20 @@ router_settings:
   allowed_fails: 1
   optional_pre_call_checks:
     - enforce_model_rate_limits
-  # Auth failures (e.g. an empty/rotated key in a pool) must NOT burn retries on the
-  # same dead deployment — 0 retries → router immediately tries the next deployment,
-  # then the next tier in fallbacks. Rate/timeout/5xx get a couple retries first.
+  # FIX (2026-07-16, #26): was AuthenticationErrorRetries: 0. Traced litellm's
+  # actual router source (router.py): a retry count of 0 means the router
+  # never attempts a SIBLING deployment in the same pool on an auth error —
+  # it fails that request immediately and falls straight to the next
+  # `fallbacks` TIER, skipping a healthy same-tier deployment entirely
+  # (e.g. DeepSeek dead + auth-error on the main pool would skip a perfectly
+  # healthy Gemini sibling and drop straight to tier2). This is the literal
+  # mechanism behind the 2026-07 "entire main-model pool down" incident.
+  # allowed_fails=1 + cooldown_time=60 below already park a repeatedly-dead
+  # deployment, so a retry count of 1 here won't loop on the same dead
+  # deployment — it gives the FIRST unlucky request one real chance at the
+  # healthy sibling before falling through tiers.
   retry_policy:
-    AuthenticationErrorRetries: 0
+    AuthenticationErrorRetries: 1
     RateLimitErrorRetries: 2
     TimeoutErrorRetries: 2
     InternalServerErrorRetries: 2
