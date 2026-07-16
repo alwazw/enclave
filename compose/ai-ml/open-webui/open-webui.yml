@@ -36,6 +36,13 @@ services:
       # if signup is ever re-enabled (every self-registered user would get
       # admin). "pending" requires explicit admin approval for new accounts.
       DEFAULT_USER_ROLE: pending
+      # Was unset (defaults to "*" — Open WebUI's own startup log warns
+      # "NOT RECOMMENDED FOR PRODUCTION DEPLOYMENTS"). Scoped to this LAN
+      # stack's actual origins instead. Delimiter is ";" (confirmed in
+      # open_webui/config.py: `os.getenv('CORS_ALLOW_ORIGIN', '*').split(';')`
+      # — NOT ",", which the code would silently treat as one non-matching
+      # origin string).
+      CORS_ALLOW_ORIGIN: "http://localhost:${OPENWEBUI_PORT:-3000}${HOST_IP:+;http://${HOST_IP}:${OPENWEBUI_PORT:-3000}}"
       # Redis session store
       REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}"
     depends_on:
