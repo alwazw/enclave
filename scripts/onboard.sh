@@ -582,6 +582,11 @@ bring_up() {
       --env-file "$ENV_FILE" "${flags[@]}" up -d --remove-orphans )
   ok "Containers created."
 
+  # SECURITY: claim Open WebUI's first-signup admin slot immediately — it
+  # grants admin to whoever signs up first regardless of ENABLE_SIGNUP, so
+  # every second of delay here is a real LAN exposure window.
+  ensure_openwebui_admin_claimed "$proj"
+
   # Wait for LiteLLM liveness (the gateway everything routes through).
   local port; port=$(_envget LITELLM_PORT 4000)
   info "Waiting for the LiteLLM gateway on :${port}…"
@@ -602,6 +607,27 @@ bring_up() {
   # TriliumNext needs its first-run setup wizard driven headlessly, or it sits
   # at an unusable setup screen forever (see scripts/init-trilium.sh).
   ensure_trilium_initialized "$proj"
+}
+
+ensure_openwebui_admin_claimed() {
+  local proj="$1"
+  local cname="${proj}_open_webui"
+  if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
+    return 0  # not in this profile set
+  fi
+  local pw; pw=$(_envget OPENWEBUI_ADMIN_PASSWORD "")
+  if [[ -z "$pw" || "$pw" == "<CHANGE_ME>" ]]; then
+    warn "OPENWEBUI_ADMIN_PASSWORD not set — cannot auto-claim the admin slot."
+    warn "Reach http://localhost:$(_envget OPENWEBUI_PORT 3000) yourself FIRST, immediately."
+    return 0
+  fi
+  info "Claiming Open WebUI's admin account before anyone else can…"
+  if OPENWEBUI_BASE_URL="http://127.0.0.1:$(_envget OPENWEBUI_PORT 3000)" \
+     ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-openwebui-admin.sh" >/dev/null 2>&1; then
+    ok "Open WebUI admin account secured."
+  else
+    warn "Open WebUI admin claim failed — reach it yourself FIRST: scripts/init-openwebui-admin.sh"
+  fi
 }
 
 ensure_trilium_initialized() {

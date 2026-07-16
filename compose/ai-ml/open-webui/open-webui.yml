@@ -31,7 +31,11 @@ services:
       # Auth / security
       WEBUI_SECRET_KEY: ${OPENWEBUI_SECRET}
       ENABLE_SIGNUP: ${OPENWEBUI_ENABLE_SIGNUP:-false}
-      DEFAULT_USER_ROLE: admin
+      # Security hardening (2026-07-16): was "admin" — harmless only because
+      # ENABLE_SIGNUP=false blocks every signup after the first, but a footgun
+      # if signup is ever re-enabled (every self-registered user would get
+      # admin). "pending" requires explicit admin approval for new accounts.
+      DEFAULT_USER_ROLE: pending
       # Redis session store
       REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}"
     depends_on:
