@@ -8,13 +8,20 @@ services:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+    # noeviction, not allkeys-lru: this Redis backs n8n's BullMQ job queue and
+    # AFFiNE's session store, not a pure cache. BullMQ explicitly requires
+    # noeviction — under allkeys-lru, Redis can silently evict a job waiting
+    # to be processed (or an active session) once maxmemory is hit, instead of
+    # rejecting the write with a visible error. AFFiNE's own startup logs were
+    # already warning "Eviction policy is allkeys-lru. It should be
+    # 'noeviction'" on every boot — this was a real, previously-unactioned bug.
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD}
       --save 60 1
       --loglevel warning
-      --maxmemory 512mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory 1gb
+      --maxmemory-policy noeviction
     labels:
       homepage.group: Databases
       homepage.name: Redis

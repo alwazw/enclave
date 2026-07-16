@@ -132,7 +132,7 @@ One common issue encountered during setup involves the `include` directive in `l
 
 **Symptom:** Services fail to start with `bind mount source path does not exist` errors, even though the paths appear correct from the project root.
 
-**Fix:** Adjust relative paths in included compose files. For instance, if a `compose/ai-ml/litellm/litellm.yml` needs to mount a file from `config/litellm/config.yaml` at the project root, the path must be `../../../config/litellm/config.yaml` to correctly traverse up three directories from the included file. All relevant `bind mount` paths in this project have been updated to reflect this.
+**Fix:** Adjust relative paths in included compose files. For instance, if a `compose/ai-ml/litellm/litellm.yml` needs to mount a file from `config/litellm/config.yml` at the project root, the path must be `../../../config/litellm/config.yml` to correctly traverse up three directories from the included file. All relevant `bind mount` paths in this project have been updated to reflect this.
 
 ---
 
@@ -147,7 +147,7 @@ Many container base images (e.g., Qdrant, Ollama, LiteLLM, MCPO) do not include 
 - **Python:** `python3 -c "import urllib.request; r=urllib.request.urlopen('http://localhost:5000/health',timeout=10); exit(0 if r.status==200 else 1)"`
 - **Perl:** `perl -MIO::Socket::INET -e 'exit !(new IO::Socket::INET("localhost:6333"))'`
 
-All relevant health checks in this project have been updated to use these more robust methods.
+Most health checks in this project use these more robust methods. It's an easy trap to fall back into, though — a 2026-07-16 audit still found Dozzle and Portainer's healthchecks calling `wget`, which doesn't exist in either's distroless image (could never have passed regardless of app state), and Langfuse binding to Docker's auto-injected `HOSTNAME` instead of `0.0.0.0` while its healthcheck resolved `localhost` to an unreachable IPv6 address — all now fixed, see the repo's closed GitHub issues for the specifics. If you're adding a new service, verify what's actually in its image (`docker exec <container> which wget curl python3 sh`) before assuming any of them are available, and prefer a binary the image ships with its own dedicated healthcheck subcommand where one exists (e.g. Dozzle's `/dozzle healthcheck`).
 
 ### Environment Variable Generation
 
@@ -155,7 +155,7 @@ Crucial environment variables (e.g., `N8N_ENCRYPTION_KEY`, `LANGFUSE_ENCRYPTION_
 
 **Symptom:** Services requiring secrets fail to start or report authentication errors if `.env` is manually created without these values.
 
-**Fix:** The `setup.sh` script now automatically populates these variables in `.env` from `.env.template`, generating random secure values as needed. Users should run `setup.sh` as the primary bootstrap mechanism.
+**Fix:** The `setup.sh` script now automatically populates these variables in `.env` from `.env.example`, generating random secure values as needed. Users should run `setup.sh` as the primary bootstrap mechanism.
 
 ### Homepage Host Validation
 
@@ -204,8 +204,8 @@ Some MCP server npm packages (`@modelcontextprotocol/server-docker`, `@modelcont
 ---
 
 ```bash
-git clone https://github.com/youruser/AEF2.git
-cd AEF2
+git clone https://github.com/alwazw/enclave.git
+cd enclave
 ```
 
 ### Step 2 — Bootstrap
@@ -225,12 +225,14 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 The bootstrap script will:
 1. Verify Docker and Compose V2 are installed
 2. Copy `.env.example` → `.env` (skipped if `.env` already exists)
-3. Auto-generate all cryptographic secrets and passwords in `.env`
-4. Create all required `data/` runtime directories
-5. Create Docker networks and named volumes with your project prefix
-6. Pull images for the selected profile(s)
-7. Start the stack with `docker compose up -d`
-8. Print a health summary and URL table
+3. Auto-detect this host's LAN IP (prompts if more than one candidate exists) and whether a usable NVIDIA GPU is present
+4. Auto-generate all cryptographic secrets and passwords in `.env`
+5. Compute Ollama resource limits (thread/parallelism caps) from this host's actual CPU count — never a fixed number
+6. Create all required `data/` runtime directories, Docker networks, and named volumes
+7. Pull images for the selected profile(s) (checks disk headroom first)
+8. Start the stack with `docker compose up -d`, pre-seeding Dozzle/Portainer auth files beforehand so neither breaks on first boot
+9. Claim the first-run admin/owner account on every service that ships one unclaimed (Open WebUI, n8n, Trilium, Flowise where applicable) — otherwise the first LAN visitor could claim it instead of you
+10. Print a health summary and URL table
 
 ### Step 3 — Pull Models (first run)
 
@@ -240,7 +242,7 @@ The bootstrap script will:
 .\setup.ps1 -PullModels
 ```
 
-This pulls the default model set: `llama3.1:8b`, `mistral:7b`, `gemma2:9b`, `codellama:13b`, `nomic-embed-text`.
+Pulls whichever of `OLLAMA_DEFAULT_MODEL` / `OLLAMA_EMBED_MODEL` / `OLLAMA_CODE_MODEL` / `OLLAMA_VISION_MODEL` are set (uncommented) in your `.env` — comment one out to skip it. The `.env.example` defaults are deliberately conservative for an unknown machine (small models; the vision model is commented out by default) — see [Environment Variables](#environment-variables) to size these up if your hardware supports it.
 
 ### Step 4 — Open the Dashboard
 
@@ -347,7 +349,7 @@ User Message
 │                                                      │
 │  1. Intent Classification (system prompt rules)      │
 │  2. Skill Dispatch (matches trigger keywords)        │
-│  3. Tool Execution (MCP servers via cli-config.yaml) │
+│  3. Tool Execution (MCP servers via hermes-config.yaml) │
 │  4. Memory Read/Write (Qdrant vector + SurrealDB)    │
 │  5. LLM Call (via LiteLLM :4000 with model alias)   │
 │  6. Response + Langfuse trace logged                 │
@@ -356,7 +358,7 @@ User Message
 
 ### MCP Servers
 
-Hermes connects natively to 7 MCP servers via `agents/hermes/cli-config.yaml`:
+Hermes connects natively to 7 MCP servers via `agents/hermes/hermes-config.yaml`:
 
 | Server | Port | Capabilities |
 |---|---|---|
@@ -454,7 +456,7 @@ POSTGRES_DB=aef2
 SURREALDB_HOST=surrealdb
 SURREALDB_PORT=8000
 SURREALDB_USER=root
-SURREALDB_PASSWORD=<auto-generated>
+SURREALDB_PASS=<auto-generated>
 SURREALDB_NS=aef2
 SURREALDB_DB=main
 
@@ -543,32 +545,42 @@ AFFINE_ADMIN_PASSWORD=<auto-generated>
 <summary>🖥️ Section 6: Ollama & GPU</summary>
 
 ```env
-# GPU runtime: nvidia | rocm | cpu
-OLLAMA_RUNTIME=nvidia
+# GPU acceleration is opt-in, not an env var: setup.sh detects an NVIDIA GPU
+# (nvidia-smi) and, if you accept, applies compose/ai-ml/ollama/ollama.gpu.yml
+# as a compose overlay. No GPU present -> Ollama runs CPU-only (the default).
 
-# VRAM allocation per model load (in MB, 0 = unlimited)
-OLLAMA_MAX_VRAM=0
+# Ollama resource governance — computed from this host's CPU count by
+# setup.sh, not hardcoded. See these three in your own .env after bootstrap:
+OLLAMA_NUM_THREADS=<computed from nproc/2, floored at 1>
+OLLAMA_NUM_PARALLEL=<1, or 2 on hosts with >=8 cores>
+OLLAMA_KEEP_ALIVE=30m
 
-# Default models to pull on --pull-models
-OLLAMA_MODELS=llama3.1:8b,mistral:7b,gemma2:9b,codellama:13b,nomic-embed-text
+# Which models setup.sh --pull-models pulls (blank/#-commented = skipped):
+OLLAMA_DEFAULT_MODEL=llama3.2:latest
+OLLAMA_EMBED_MODEL=nomic-embed-text:latest
+OLLAMA_CODE_MODEL=qwen2.5-coder:3b
+# OLLAMA_VISION_MODEL=llava:latest   # ~4.7GB, commented out by default — opt in in .env if your hardware can take it
 ```
 
 </details>
 
 ### LiteLLM Model Configuration
 
-Models and aliases are defined in `config/litellm/config.yaml`. The semantic alias system means services never hardcode model names:
+Models and their provider fallback chains are defined in `config/litellm/config.yml` (the file actually mounted into the LiteLLM container — `litellm.yml` and `setup-default-config.yaml` in the same directory are stale reference copies, not live config). Services never hardcode a provider — they call a semantic alias, and LiteLLM cascades through providers behind it until one succeeds. The real alias tiers, roughly cheapest/free-first:
 
-| Alias | Resolved Model | Fallback Chain |
+| Alias | Purpose | Provider cascade (first that succeeds wins) |
 |---|---|---|
-| `default` | `ollama/llama3.1:8b` | → `gpt-4o-mini` |
-| `smart` | `ollama/llama3.1:70b` | → `gpt-4o` → `claude-3-5-sonnet` |
-| `powerful` | `ollama/mixtral:8x22b` | → `gpt-4o` |
-| `coder` | `ollama/codellama:13b` | → `gpt-4o` |
-| `embeddings` | `ollama/nomic-embed-text` | (no fallback) |
-| `vision` | `ollama/llava:13b` | → `gpt-4o` |
+| `openai/morpheus-main-model` | Primary chat model (`HERMES_DEFAULT_MODEL`, `OI_MODEL`, `ANYTHINGLLM_MODEL` all point here) | Gemini 2.5 Pro (3 keys) → DeepSeek Reasoner (2 keys) |
+| `openai/morpheus-main-tier2` | Secondary/cheaper chat tier | Gemini 2.5 Flash (3 keys) → Alibaba Qwen-Max → Groq Llama-3.3-70B |
+| `openai/morpheus-utility-model` | Structured/JSON-mode utility calls | Gemini 2.5 Flash JSON mode (3 keys) → Alibaba Qwen-Max |
+| `openai/morpheus-openrouter-free` | OpenRouter free-tier models | Nemotron (3 free OpenRouter keys) |
+| `openai/morpheus-local-fallback` | The true offline \$0 floor | Local Ollama (`dolphin3` → `deepseek-r1:8b`) — works with zero internet once cached |
+| `openai/morpheus-embedding-model` | Embeddings | Local Ollama `nomic-embed-text` |
+| `openai/morpheus-prod-main` | Paid, opt-in production tier | Anthropic Claude Sonnet 5 |
 
-To add a new model, append to `config/litellm/config.yaml` and restart LiteLLM:
+This is the free-tier cascade the project's CFO doctrine ("FREE-BY-DEFAULT — a fresh install runs at \$0") is built on — every tier tries free/local options first and only reaches a paid provider (`-prod-*` aliases) if you've explicitly opted in with a key and spend cap in `scripts/onboard.sh`. See `config/litellm/config.yml` directly for the full, current list — it changes more often than this README does.
+
+To add a new model, append to `config/litellm/config.yml` and restart LiteLLM:
 ```bash
 docker compose restart litellm
 ```
@@ -636,32 +648,32 @@ docker compose logs > stack.log 2>&1
 # ─── Ollama Models ───────────────────────────────────────────────────
 
 # List installed models
-docker exec ollama ollama list
+docker exec aef2_ollama ollama list
 
 # Pull a model
-docker exec ollama ollama pull llama3.1:70b
+docker exec aef2_ollama ollama pull llama3.1:70b
 
 # Remove a model
-docker exec ollama ollama rm llama3.1:70b
+docker exec aef2_ollama ollama rm llama3.1:70b
 
 # Interactive shell in Ollama
-docker exec -it ollama ollama run llama3.1:8b
+docker exec -it aef2_ollama ollama run llama3.1:8b
 
 # ─── Database Operations ─────────────────────────────────────────────
 
 # PostgreSQL shell
-docker exec -it postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+docker exec -it aef2_postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
 
 # SurrealDB shell
-docker exec -it surrealdb surreal sql \
+docker exec -it aef2_surrealdb surreal sql \
   --conn http://localhost:8000 \
   --user ${SURREALDB_USER} \
-  --pass ${SURREALDB_PASSWORD} \
+  --pass ${SURREALDB_PASS} \
   --ns ${SURREALDB_NS} \
   --db ${SURREALDB_DB}
 
 # Redis CLI
-docker exec -it redis redis-cli -a ${REDIS_PASSWORD}
+docker exec -it aef2_redis redis-cli -a ${REDIS_PASSWORD}
 
 # ─── Hermes ──────────────────────────────────────────────────────────
 
@@ -737,12 +749,12 @@ Solutions:
 docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
 
 # Check Ollama GPU detection
-docker exec ollama ollama ps
+docker exec aef2_ollama ollama ps
 ```
 
-If GPU is not listed, ensure `OLLAMA_RUNTIME=nvidia` is set in `.env` and the container was recreated (not just restarted) after the change:
+If GPU is not listed, re-run `./setup.sh` — its GPU detection step re-checks `nvidia-smi` and re-offers applying `compose/ai-ml/ollama/ollama.gpu.yml`. To apply that overlay by hand instead:
 ```bash
-docker compose up -d --force-recreate ollama
+docker compose -f local-stack.yml -f compose/ai-ml/ollama/ollama.gpu.yml up -d --force-recreate ollama
 ```
 
 **WSL2 on Windows:** Ensure WSL2 GPU support is enabled and the NVIDIA Windows driver is ≥ 527.x.
@@ -781,14 +793,14 @@ Do not use `localhost` — n8n cannot resolve it to Hermes inside Docker.
 <details>
 <summary>🔴 SurrealDB MCP server returning auth errors</summary>
 
-The MCP SurrealDB server uses credentials from `cli-config.yaml` which are populated from environment variables. Verify:
+The MCP SurrealDB server uses credentials from `hermes-config.yaml` which are populated from environment variables. Verify:
 
 ```bash
 # Check env vars are loaded in the mcp-surrealdb container
-docker exec mcp-surrealdb env | grep SURREAL
+docker exec aef2_mcp_surrealdb env | grep SURREAL
 ```
 
-If variables are missing, ensure `.env` has `SURREALDB_USER`, `SURREALDB_PASSWORD`, `SURREALDB_NS`, `SURREALDB_DB` set, then:
+If variables are missing, ensure `.env` has `SURREALDB_USER`, `SURREALDB_PASS`, `SURREALDB_NS`, `SURREALDB_DB` set, then:
 
 ```bash
 docker compose up -d --force-recreate mcp-surrealdb
@@ -804,7 +816,7 @@ The init script `compose/database/postgres/init/01-create-databases.sql` runs **
 Fix — run the init script manually:
 
 ```bash
-docker exec -i postgres psql -U ${POSTGRES_USER} < \
+docker exec -i aef2_postgres psql -U ${POSTGRES_USER} < \
   compose/database/postgres/init/01-create-databases.sql
 ```
 
@@ -839,7 +851,7 @@ AEF2/
 │
 ├── agents/
 │   └── hermes/
-│       ├── cli-config.yaml        # MCP server connections + Langfuse tracing
+│       ├── hermes-config.yaml        # MCP server connections + Langfuse tracing
 │       ├── system-prompt.md       # Hermes persona, rules, skill dispatch logic
 │       └── skills/
 │           ├── rag-ingest/SKILL.md
@@ -885,7 +897,7 @@ AEF2/
 │       └── cloudbeaver/cloudbeaver.yml
 │
 ├── config/
-│   ├── litellm/config.yaml        # Models, aliases, fallback chains, callbacks
+│   ├── litellm/config.yml        # Models, aliases, fallback chains, callbacks
 │   ├── mcpo/config.json           # MCP server registry for MCPO bridge
 │   ├── searxng/settings.yml       # Search engines, cache, privacy settings
 │   └── homepage/

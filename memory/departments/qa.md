@@ -82,3 +82,15 @@ mem0 is correctly not running. Full evidence in that day's QA report to the CEO/
   finding; verified user count returned to 0 and `onboarding` reverted to `true`
   afterward. Documented in the report rather than silently fixed, since claiming the
   account is a security decision for the Chairman/devops, not QA.
+
+## 2026-07-16 — Process gap: a one-shot container's Exit(0) is not "nothing to review"
+`aef2_affine_migration` exited 0 and was treated as a clean pass in this session's first
+deep-validate sweep. Its full log (not just the tail) contained a real, actionable warning
+repeated 8 times (`Eviction policy is allkeys-lru. It should be "noeviction"`) that traced to
+a genuine Redis misconfiguration risking silent data loss for n8n's job queue and AFFiNE's
+sessions — caught only because the Chairman explicitly asked "how did this pass validation"
+and pushed for the full log to be read. Going forward: for one-shot/migration containers,
+`docker logs <container> 2>&1` (full, not `--tail`) should be grepped for
+`WARN|IMPORTANT|ERROR|FATAL|deprecated` as a standard deep-validate step, not skipped just
+because the exit code was 0. Exit code proves the process didn't crash; it proves nothing
+about whether the process's own output flagged a problem worth reading.

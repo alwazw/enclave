@@ -118,3 +118,38 @@ generating required config files, but didn't exist — Docker's bind-mount-nonex
 auto-creates a directory instead of a file, breaking both containers on first-ever bring-up (had
 to `rmdir` the bad path AND clean a same-shaped directory that had leaked into Dozzle's named
 volume before the real files could be written). Wrote both scripts, wired into both installers.
+
+## 2026-07-16 — Redis eviction policy: found by actually reading a migration log, not trusting Exit(0)
+Chairman pushed back on treating `aef2_affine_migration`'s `Exited (0)` as clean — right call.
+Its full log (37KB, mostly benign Nest.js startup noise) contained `IMPORTANT! Eviction policy is
+allkeys-lru. It should be "noeviction"` eight times. Root cause: `compose/database/redis/
+redis.yml` explicitly set `--maxmemory-policy allkeys-lru` with a 512MB cap, but this Redis backs
+n8n's BullMQ queue and AFFiNE's session store — not a pure cache. BullMQ's own docs require
+`noeviction`; under LRU, a queued job or active session could be silently evicted under memory
+pressure with zero error surfaced. Fixed: `noeviction` + raised cap to 1GB given this host's real
+headroom, with an inline comment. Verified live (CONFIG GET both settled correctly; n8n/AFFiNE
+still healthy post-recreate). Lesson generalized into memory/departments/qa.md and the closed
+GitHub issue: a one-shot container's exit code says nothing about whether its own log flagged a
+real, actionable warning — this class of check needs to be part of the deep-validate log-review
+step going forward, not just "logs clean since start" for long-running containers.
+
+## 2026-07-16 — README.md: fixed confirmed drift, did not claim exhaustive line-by-line coverage
+Chairman flagged (correctly) that README.md still referenced the old `AEF2` project name in its
+clone URL (with an unfilled `youruser` placeholder) and a completely fictional default model list
+inherited from an earlier draft. Investigating surfaced much more: fictional `OLLAMA_RUNTIME`/
+`OLLAMA_MAX_VRAM`/`OLLAMA_MODELS` env vars that don't exist anywhere in this repo, a fictional
+LiteLLM alias table bearing no resemblance to the real `openai/morpheus-*` provider cascade in
+`config/litellm/config.yml`, generic un-prefixed container names throughout "Common Commands"
+(`ollama` vs the real `aef2_ollama`, etc.), wrong file paths (`config.yaml` vs real `.yml`,
+`.env.template` vs real `.env.example`, `cli-config.yaml` vs real `hermes-config.yaml`), a dead
+env var (`SURREALDB_PASSWORD` vs the already-resolved canonical `SURREALDB_PASS`), and a false
+"all health checks have been fixed" claim contradicted by tonight's own Dozzle/Portainer/Langfuse
+findings. Fixed everything found via this targeted sweep plus a read-through of Quick Start/
+Prerequisites/Configuration Guide. Explicitly did NOT claim full line-by-line coverage of the
+954-line file — Troubleshooting's body and Repository Structure were only spot-checked, and no
+other `.md` files beyond README/CLAUDE/the already-touched agent+skill files were audited.
+Recorded as an honest scope boundary in the closed GitHub issue rather than overclaiming
+completeness. Also filed (open, not implemented) a feature-request issue per Chairman's
+recommendation: scheduled stack-wide update/dependency-drift checks, and a single-source-of-truth
+requirements file so docs and the installer can't silently diverge from each other the way this
+one did.

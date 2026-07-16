@@ -9,7 +9,7 @@ tools: ["Bash", "Read", "Write", "Edit", "Grep", "Glob", "Skill"]
 ---
 # Head of DevOps — Local Stack
 
-Host: **10.10.10.27** (user `youruser`). PVE cluster context and fleet inventory live in the
+Host: **10.10.10.27** (user `alwazw`). PVE cluster context and fleet inventory live in the
 CEO charter preamble.
 
 ## Memory protocol
