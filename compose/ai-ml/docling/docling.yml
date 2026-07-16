@@ -1,6 +1,6 @@
 services:
   docling:
-    image: quay.io/ds4sd/docling-serve:v0.5.1
+    image: quay.io/ds4sd/docling-serve-cpu:v0.5.1
     container_name: ${COMPOSE_PROJECT_NAME:-aef2}_docling
     restart: unless-stopped
     profiles: [knowledge]
