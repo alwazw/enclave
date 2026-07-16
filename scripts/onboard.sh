@@ -631,6 +631,23 @@ ensure_local_model() {
     ok "Local model already present: $model"
     return 0
   fi
+
+  # Resource governance: model pulls are multi-GB — a host that's nearly out
+  # of disk fails mid-pull with a confusing error. Check headroom on the
+  # Docker data-root filesystem (where the model layers actually land) first.
+  local min_free_gb=10
+  local docker_root free_kb free_gb
+  docker_root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
+  free_kb=$(df -Pk "$docker_root" 2>/dev/null | awk 'NR==2{print $4}')
+  if [[ -n "$free_kb" ]]; then
+    free_gb=$(( free_kb / 1024 / 1024 ))
+    if (( free_gb < min_free_gb )); then
+      warn "Only ${free_gb}GB free on ${docker_root} — skipping model pull (need ~${min_free_gb}GB+ headroom)."
+      warn "Free up space, then run: docker exec ${cname} ollama pull ${model}"
+      return 0
+    fi
+  fi
+
   ui_note \
     "Pulling the local model '${model}' — this is the long pole of the" \
     "install (several GB). It is the offline \$0 floor; once cached, the" \
