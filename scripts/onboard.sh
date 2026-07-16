@@ -655,6 +655,10 @@ bring_up() {
   # at an unusable setup screen forever (see scripts/init-trilium.sh).
   ensure_trilium_initialized "$proj"
 
+  # Flowise (#8): env-based basic auth does nothing against the pinned
+  # v3.1.2 image — real bootstrap is registering the org owner via its API.
+  ensure_flowise_admin "$proj"
+
   # One-shot job containers (e.g. affine-migration) sit "Exited" forever
   # after a successful run — reads as "down" in Homepage/Portainer even
   # though exit 0 means success. Safe to remove: compose recreates and
@@ -669,7 +673,8 @@ bring_up() {
 
 ensure_openwebui_admin_claimed() {
   local proj="$1"
-  local cname="${proj}_open_webui"
+  # #24: container names dropped the ${proj}_ prefix — bare service name now.
+  local cname="open_webui"
   if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
     return 0  # not in this profile set
   fi
@@ -690,7 +695,8 @@ ensure_openwebui_admin_claimed() {
 
 ensure_trilium_initialized() {
   local proj="$1"
-  local cname="${proj}_trilium"
+  # #24: container names dropped the ${proj}_ prefix — bare service name now.
+  local cname="trilium"
   if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
     return 0  # not in this profile set
   fi
@@ -706,7 +712,8 @@ ensure_trilium_initialized() {
 ensure_local_model() {
   local proj="$1"
   local model; model=$(_envget OLLAMA_DEFAULT_MODEL "llama3.2:latest")
-  local cname="${proj}_ollama"
+  # #24: container names dropped the ${proj}_ prefix — bare service name now.
+  local cname="ollama"
   if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
     info "Ollama container not in this profile — skipping model pull."
     return 0
@@ -742,6 +749,22 @@ ensure_local_model() {
   else
     docker exec "$cname" ollama pull "$model" \
       && ok "Local model ready: $model" || warn "Model pull failed — retry later."
+  fi
+}
+
+ensure_flowise_admin() {
+  local proj="$1"
+  local cname="flowise"
+  if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
+    return 0  # not in this profile set
+  fi
+  info "Registering Flowise's organization owner…"
+  if FLOWISE_BASE_URL="http://127.0.0.1:$(_envget FLOWISE_PORT 3100)" \
+     FLOWISE_CONTAINER="$cname" \
+     ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-flowise-admin.sh" >/dev/null 2>&1; then
+    ok "Flowise admin ready."
+  else
+    warn "Flowise admin bootstrap failed — retry later: scripts/init-flowise-admin.sh"
   fi
 }
 

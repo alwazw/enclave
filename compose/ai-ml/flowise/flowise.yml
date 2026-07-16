@@ -10,8 +10,13 @@ services:
       - flowise_data:/root/.flowise
     environment:
       PORT: "3000"
-      FLOWISE_USERNAME: ${FLOWISE_USERNAME:-admin}
-      FLOWISE_PASSWORD: ${FLOWISE_PASSWORD}
+      # #8: FLOWISE_USERNAME/FLOWISE_PASSWORD as container env vars did NOTHING —
+      # v3.1.2 dropped env-based basic auth for a workspace/organization
+      # multi-tenant model (confirmed: grepped the shipped dist/, zero
+      # references to either var). Real bootstrap is
+      # scripts/init-flowise-admin.sh (POST /api/v1/account/register),
+      # using FLOWISE_ADMIN_EMAIL + the same FLOWISE_PASSWORD as the
+      # credential value.
       FLOWISE_SECRETKEY_OVERWRITE: ${FLOWISE_SECRET_KEY}
       DATABASE_TYPE: postgres
       DATABASE_HOST: ${POSTGRES_HOST:-postgres}
