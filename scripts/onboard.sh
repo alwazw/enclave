@@ -200,10 +200,33 @@ detect_prereqs() {
   fi
   ok "docker found: $(docker --version 2>/dev/null | head -1)"
 
+  # Minimum-version checks against requirements.yml (single source of truth —
+  # see #16: docs/config drifting from real requirements with nothing to
+  # catch it). Warns rather than hard-fails; an old-but-working install
+  # shouldn't be blocked by a soft version floor.
+  local req_file="$REPO_DIR/requirements.yml"
+  if [[ -f "$req_file" ]]; then
+    local req_docker req_compose docker_ver compose_ver
+    req_docker=$(grep -E '^\s*docker_min_version:' "$req_file" | head -1 | sed -E 's/.*:\s*"?([0-9.]+)"?.*/\1/')
+    req_compose=$(grep -E '^\s*compose_min_version:' "$req_file" | head -1 | sed -E 's/.*:\s*"?([0-9.]+)"?.*/\1/')
+    docker_ver=$(docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    if [[ -n "$req_docker" && -n "$docker_ver" ]] && \
+       [[ "$(printf '%s\n%s' "$req_docker" "$docker_ver" | sort -V | head -1)" != "$req_docker" ]]; then
+      warn "Docker ${docker_ver} is older than the recommended minimum ${req_docker} (requirements.yml)."
+    fi
+  fi
+
   # compose v2 vs legacy
   if docker compose version >/dev/null 2>&1; then
     DOCKER_COMPOSE=("docker" "compose")
     ok "Docker Compose v2 found: $(docker compose version --short 2>/dev/null)"
+    if [[ -f "$req_file" ]]; then
+      compose_ver=$(docker compose version --short 2>/dev/null)
+      if [[ -n "$req_compose" && -n "$compose_ver" ]] && \
+         [[ "$(printf '%s\n%s' "$req_compose" "$compose_ver" | sort -V | head -1)" != "$req_compose" ]]; then
+        warn "Compose ${compose_ver} is older than the recommended minimum ${req_compose} (requirements.yml)."
+      fi
+    fi
   elif command -v docker-compose >/dev/null 2>&1; then
     DOCKER_COMPOSE=("docker-compose")
     warn "Using legacy docker-compose. Compose v2 is recommended."

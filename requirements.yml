@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Single source of truth for host prerequisites and pinned image tags.
+# Read by scripts/onboard.sh (version checks) and .github/workflows/
+# dependency-check.yml (drift detection) — the two are not allowed to
+# hardcode their own separate copy of this list (see #16: README's
+# Ollama/LiteLLM sections drifted from real .env/compose config because
+# nothing shared a single source of truth).
+#
+# Regenerate the image_tags list with:
+#   grep -rhoE "image:\s*\S+" compose/ --include="*.yml" | sed 's/image:\s*//' | sort -u
+# Excludes enclave/ceo, enclave/registrar, enclave/ux-validate — locally
+# built images with no external registry to check drift against.
+# ─────────────────────────────────────────────────────────────────────────────
+
+host_requirements:
+  docker_min_version: "24.0.0"
+  compose_min_version: "2.20.0"
+  required_tools:
+    - docker
+    - git
+    - curl
+
+# Every pinned, externally-registry-hosted image tag currently in
+# compose/**/*.yml. The dependency-check workflow diffs each of these
+# against its registry's recorded digest since the last run.
+image_tags:
+  - amir20/dozzle:latest
+  - chromadb/chroma:latest
+  - cr.weaviate.io/semitechnologies/weaviate:latest
+  - dbeaver/cloudbeaver:latest
+  - flowiseai/flowise:latest
+  - ghcr.io/berriai/litellm:main-stable
+  - ghcr.io/gethomepage/homepage:latest
+  - ghcr.io/open-webui/mcpo:latest
+  - ghcr.io/open-webui/open-webui:main
+  - ghcr.io/toeverything/affine:stable
+  - langfuse/langfuse:2
+  - mem0/mem0-api-server:latest
+  - mintplexlabs/anythingllm:latest
+  - n8nio/n8n:latest
+  - nginx:alpine
+  - node:22-alpine
+  - nousresearch/hermes-agent:latest
+  - ollama/ollama:latest
+  - openinterpreter/open-interpreter:latest
+  - portainer/portainer-ce:2.43.0-alpine
+  - postgres:16-alpine
+  - qdrant/qdrant:latest
+  - quay.io/ds4sd/docling-serve-cpu:v0.5.1
+  - redis:7-alpine
+  - searxng/searxng:latest
+  - surrealdb/surrealdb:latest
+  - triliumnext/notes:latest

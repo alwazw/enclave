@@ -1,0 +1,60 @@
+name: Dependency drift check
+
+# Recommendation 1 from issue #16: nothing automated caught image/config
+# drift (Flowise's auth-model change, docling's GPU/CPU tag split) until a
+# full manual deep-validate sweep found it. This runs scripts/check-image-
+# drift.sh on a schedule, commits the updated digest-state file, and files/
+# updates a tracking issue when a versioned pin's digest changed underneath
+# it or a pinned tag stopped resolving entirely.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # 06:17 UTC every Monday
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run drift check
+        id: drift
+        run: |
+          set +e
+          bash scripts/check-image-drift.sh | tee drift-output.txt
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated digest state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- .github/image-digest-state.json; then
+            git add .github/image-digest-state.json
+            git commit -m "chore: update image-digest-state.json [skip ci]"
+            git push
+          fi
+
+      - name: File/update tracking issue on drift
+        if: steps.drift.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="Automated dependency-drift check found issues. See job log for details.
+
+          \`\`\`
+          $(cat drift-output.txt)
+          \`\`\`
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          existing=$(gh issue list --search "Dependency drift check flagged issues in:title" --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Dependency drift check flagged issues" --body "$body" --label "automated"
+          fi
