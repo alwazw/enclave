@@ -19,7 +19,15 @@ services:
     # crash-loops the container (verified live on local-stack, the deployed
     # instance this repo mirrors). Only run the config-merge step; let the
     # image's own s6 supervision own the gateway process.
-    command: ["sh", "-c", "sh /hermes-init.sh; sleep infinity"]
+    # openai-shim.py: Open WebUI's OPENAI_API_BASE_URLS already lists
+    # http://hermes:8642/v1 as a second backend, but nothing ever listened
+    # there (Hermes has no HTTP agent API — see above). This backgrounds a
+    # thin stdlib-only shim that shells out to the real `hermes -z ... --cli`
+    # per request and wraps it as an OpenAI chat.completion(.chunk) — proving
+    # a real Open WebUI -> Hermes chat round-trip instead of leaving the
+    # second connection dead. Internal-network-only (aef2_backend), not
+    # published to the host.
+    command: ["sh", "-c", "sh /hermes-init.sh; python3 /hermes-openai-shim.py & sleep infinity"]
     volumes:
       # HERMES_HOME is /opt/data (NOT /root/.hermes) — this is where the image
       # actually persists config, sessions, kanban, memory, skills.
@@ -30,6 +38,8 @@ services:
       # #29: one-shot Telegram boot-race self-heal, invoked from the
       # healthcheck below (never gates health — see the healthcheck comment).
       - ../../../agents/hermes/telegram-selfheal.sh:/telegram-selfheal.sh:ro
+      # OpenAI-compat shim for Open WebUI's second backend (see command comment above).
+      - ../../../agents/hermes/openai-shim.py:/hermes-openai-shim.py:ro
       # Persona / system prompt: the image loads $HERMES_HOME/SOUL.md fresh each turn.
       - ../../../agents/hermes/SOUL.md:/opt/data/SOUL.md:ro
       # Stack-specific skills, registered via skills.external_dirs in the fragment.
