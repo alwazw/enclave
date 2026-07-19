@@ -641,6 +641,17 @@ docker compose restart hermes
 # Pull latest images
 docker compose pull
 
+# ─── Maintenance ─────────────────────────────────────────────────────
+
+# One-shot job containers (e.g. affine-migration) sit "Exited" forever after
+# a successful run -- reads as "down" in Homepage/Portainer even though exit 0
+# means success. onboard.sh cleans these up on every bring-up, but that only
+# fires when you manually re-run it. Recommended: a periodic cron entry so it
+# also runs on its own between bring-ups.
+scripts/cleanup-oneshot-jobs.sh
+# crontab -e:
+#   0 * * * * /path/to/repo/scripts/cleanup-oneshot-jobs.sh >> /path/to/repo/logs/cleanup-oneshot-jobs.log 2>&1
+
 # ─── Logs ────────────────────────────────────────────────────────────
 
 # Follow logs for a service

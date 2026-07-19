@@ -670,12 +670,11 @@ bring_up() {
   # after a successful run — reads as "down" in Homepage/Portainer even
   # though exit 0 means success. Safe to remove: compose recreates and
   # reruns them (idempotent) on the next full bring-up.
-  local exited_jobs
-  exited_jobs=$(docker ps -a --filter "label=aef2.oneshot=true" --filter "status=exited" -q)
-  if [[ -n "$exited_jobs" ]]; then
-    echo "$exited_jobs" | xargs -r docker rm >/dev/null
-    ok "Cleaned up $(echo "$exited_jobs" | wc -l) completed one-shot job container(s)."
-  fi
+  # #20: this used to be inline here, which only cleaned up once — on the
+  # NEXT manual onboard.sh run — leaving a stranded container the rest of
+  # the time. Extracted to its own script so a cron entry can ALSO call it
+  # periodically without a full bring-up (see crontab -l on the host).
+  bash "$REPO_DIR/scripts/cleanup-oneshot-jobs.sh" || true
 }
 
 ensure_openwebui_admin_claimed() {
