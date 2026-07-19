@@ -265,3 +265,11 @@ mine to assume.
 `workflow_dispatch` trigger to prove it runs end-to-end on GitHub's infrastructure — not
 just locally. Without this, #16 cannot be honestly closed; "the code is correct" and "the
 scheduled check runs" are different claims, and only a real push closes that gap.
+
+**UPDATE 2026-07-19T23:59:00Z — a third, higher-priority exposure to fold into the same
+rotation decision above:** while investigating #2 (Langfuse), an unredacted
+`grep "^LANGFUSE_INIT" .env` printed `LANGFUSE_INIT_USER_PASSWORD`'s real value into this
+session's transcript. Unlike the API-key exposures already logged, this is a genuine
+personal password (matches the Chairman's own name) — plausibly reused elsewhere, not a
+scoped/generated service key. Recommend treating this one as the highest-priority single
+item in whatever rotation pass addresses the accumulated exposures.
