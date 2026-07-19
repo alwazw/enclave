@@ -9,13 +9,19 @@ but nothing has ever listened there. This process is that listener: it shells ou
 to the real `hermes -z ... --cli --continue <session>` for every request and wraps
 stdout in an OpenAI chat.completion(.chunk) envelope.
 
-Session mapping: the OpenAI chat-completions protocol carries no conversation id,
-but Open WebUI resends the full message history every turn. We derive a stable
-Hermes --continue session key from a hash of the first user message in that
-history, so turns within one Open WebUI chat share one Hermes session (memory,
-persona) while distinct chats get distinct sessions. This is a per-chat mapping,
-not a cross-surface (Telegram <-> Open WebUI) one -- that unification is #31,
-deliberately out of scope here.
+Session mapping (#31 groundwork): this stack is single-operator
+(GATEWAY_ALLOW_ALL_USERS=true, one TELEGRAM_ALLOWED_USERS id) -- there is
+really only one end user across every surface. So by default (HERMES_SHIM_
+SESSION_MODE=unified, the default) every Open WebUI request continues the
+SAME Hermes session (HERMES_SHIM_UNIFIED_SESSION, default "chairman-primary"),
+giving one shared memory across all Open WebUI chats instead of one silo per
+browser tab. Set HERMES_SHIM_SESSION_MODE=per-chat to fall back to the old
+behavior (a session key hashed from each chat's first user message -- distinct
+Open WebUI chats get distinct Hermes sessions, but nothing shares memory).
+Full cross-surface (Telegram <-> Open WebUI) sync needs the Telegram platform
+adapter's own session naming to align with this one -- not yet possible to
+verify live (#27 blocks Telegram from connecting at all); see
+docs/CONVERSATION_SYNC_DESIGN.md for the concrete plan once it does.
 
 Internal-network-only: not published to the host, reachable only from other
 containers on aef2_backend. No auth is enforced, matching the other internal-only
@@ -34,9 +40,13 @@ HERMES_HOME = os.environ.get("HERMES_HOME", "/opt/data")
 HERMES_BIN = "hermes"
 CALL_TIMEOUT_S = 180
 MODEL_ID = "hermes"
+SESSION_MODE = os.environ.get("HERMES_SHIM_SESSION_MODE", "unified")
+UNIFIED_SESSION = os.environ.get("HERMES_SHIM_UNIFIED_SESSION", "chairman-primary")
 
 
 def session_key_for(messages):
+    if SESSION_MODE != "per-chat":
+        return UNIFIED_SESSION
     first_user = next((m.get("content", "") for m in messages if m.get("role") == "user"), "")
     if isinstance(first_user, list):  # some clients send content as parts
         first_user = " ".join(p.get("text", "") for p in first_user if isinstance(p, dict))
