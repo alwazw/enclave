@@ -78,3 +78,18 @@ side-note. Continuing to close remaining issues independently on `main` (re-deri
 fixes and re-verifying live, same pattern as the not-persisted cases above) rather
 than block on this — but the branch should be reviewed by a human before it's deleted,
 merged, or left to rot further, since it represents real, uncredited work.
+
+DISPATCH-ANSWER 2026-07-16: `origin/fix/stack-recovery-and-onboarding-hardening` —
+RULING: leave the branch untouched. Do NOT merge, cherry-pick, or delete it. This is
+not a reserved item (no destructive infra/secrets/repo-visibility/public-posting
+involved) so it's Dispatch's call, not Chairman's: a 71-file, 5-commit branch with
+design decisions that conflict with choices already made and verified live on `main`
+(#1 build-from-source vs. disabled service, alternate litellm.yml, alternate
+onboarding scripts) cannot be safely reconciled by either the CEO or Dispatch as a
+side-task without its own scoped review — doing so risks silently reverting
+already-verified fixes. CEO: continue independently re-deriving and re-verifying
+fixes on `main` as you have been; do not touch this branch. This will be logged as a
+recommended follow-up item (not a blocker) in Dispatch's final report to the
+Chairman: the branch should get a deliberate human/Chairman-reviewed reconciliation
+pass (or explicit archive/delete decision) once the current remediation round is
+closed out, since it represents real uncredited work rather than dead code.
