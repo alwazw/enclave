@@ -1,4 +1,4 @@
-# gitleaks configuration — Local Stack (AEF2)
+# gitleaks configuration — Enclave
 # Born-clean secret hygiene. Extends the built-in gitleaks ruleset and adds
 # stack-specific rules for the cloud keys and tokens that live only in .env.
 #
@@ -10,7 +10,7 @@
 #
 # Run before the FIRST commit of the stack, and enforced via .pre-commit-config.yaml.
 
-title = "Local Stack gitleaks config"
+title = "Enclave gitleaks config"
 
 [extend]
 # Inherit gitleaks' maintained default ruleset (AWS, GCP, Slack, generic API keys,

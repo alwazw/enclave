@@ -1,4 +1,4 @@
-# local-stack — Project Manager
+# enclave — Project Manager
 
 A lightweight, git-tracked project-management system for this stack. It gives
 you a kanban board that lives **both** locally (markdown, version-controlled)
@@ -86,7 +86,7 @@ is no always-on daemon; the coordinator supervises while a session is active.
 
 - The board tooling edits **only** files under `pm/`. It runs no git commands.
 - When committing, stage **only** the whitelist:
-  `git add local-stack/pm local-stack/.claude` — never `git add -A`.
+  `git add pm .claude` — never `git add -A`.
 - Do **not** `git push` this repo yet. The PM setup ran `git rm --cached` on
   `.env`, credential files, and token seeds so **future** commits won't carry
   them — but those blobs are still present in **prior commit history**.

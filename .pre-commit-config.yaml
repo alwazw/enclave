@@ -1,4 +1,4 @@
-# Pre-commit hooks — Local Stack (AEF2) born-clean secret hygiene.
+# Pre-commit hooks — Enclave born-clean secret hygiene.
 #
 # Install once:   pip install pre-commit && pre-commit install
 # Run manually:   pre-commit run --all-files

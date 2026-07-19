@@ -1,13 +1,13 @@
 ---
 name: memory-protocol
 description: >-
-  The corporate memory discipline for Local Stack. Invoke when starting or
+  The corporate memory discipline for Enclave. Invoke when starting or
   ending a department-head invocation, when recording a decision, or when
   memory and the board disagree. Defines what goes in which memory file, the
   read-at-start / write-at-end cycle, and the rules that keep memory truthful
   and secret-free across all future sessions.
 ---
-# memory-protocol — Local Stack
+# memory-protocol — Enclave
 
 Memory is what makes this corporation permanent. It is all git-versioned markdown; every
 session, on any machine, wakes up with the company's full history.

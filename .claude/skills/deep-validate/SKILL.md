@@ -1,7 +1,7 @@
 ---
 name: deep-validate
 description: >-
-  Deep, evidence-based validation gate for the local-stack project. Invoke
+  Deep, evidence-based validation gate for the enclave project. Invoke
   BEFORE marking any task done — it proves a change actually works IN THE
   CONTEXT it was executed, not just that a process is up. For docker services
   this means health AND reachable endpoint AND clean logs AND an in-container
