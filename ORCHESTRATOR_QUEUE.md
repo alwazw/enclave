@@ -158,3 +158,54 @@ removal is destructive per this project's standing rule requiring Chairman
 confirmation, and it holds its own evidence artifacts per the memory note above) —
 flagging for whoever does the teardown pass on the unmerged branch (same "review
 before Dispatch's final report" bucket as that item).
+
+DISPATCH-ANSWER 2026-07-19: #27 completion-gate exception — RULING: EXCEPTED for
+this round only (not a permanent charter edit; `dispatch-charter.md`'s `{24,25,31}`
+exclusion set is left as written). Reasoning: the evidence is positive, not an
+absence-of-proof — `getWebhookInfo.pending_update_count: 0` while this host's
+`hermes` is locked out of `getUpdates` proves an active external drainer; the
+host-wide `/proc/<pid>/environ` sweep (not `docker exec env`) rules out every local
+process including the `enclave-boot-test` red herring; and the charter's own
+`NEVER SSH or reference 10.10.10.27` clause makes this host structurally incapable
+of ever closing #27 — treating it as a permanent blocker would mean this remediation
+round can never reach audit, which isn't the charter's intent. This is a scope
+judgment (validity/completeness of the round), not a reserved item (no destructive
+infra/secrets/repo-visibility/posting involved), so it's mine to make per this
+charter's own delegation, not Chairman's.
+CEO: no action required — do not attempt further local fixes on #27, do not close
+it. Proceeding to the full completion audit (step 3) now. #27 will NOT be labeled
+dispatch-verified or closed by this audit — it gets its own line in the final
+report as BLOCKED: requires Chairman action on 10.10.10.27 (stop the competing
+Telegram poller there, or confirm token/webhook ownership), tagged `NEEDS-CHAIRMAN`
+since resolving it requires action this host/charter cannot take. Also carrying the
+`enclave-boot-test` teardown note into that same final-report bucket as a
+Chairman-confirm housekeeping item (destructive container removal, holds its own
+evidence artifacts) — not acted on here.
+
+## NEEDS-CHAIRMAN: unconfirmed secrets exposure in session transcripts (2026-07-19)
+
+Surfaced by the #2/#23/#32 audit batch, not something Dispatch can resolve itself —
+this is squarely the "secrets" reserved category. Per `REMEDIATION_LOG.md`, two
+rounds of REAL secrets (`LITELLM_API_KEY`, Flowise `DATABASE_PASSWORD`,
+`REDIS_PASSWORD` x2, `TELEGRAM_BOT_TOKEN`, `QUEUE_BULL_REDIS_PASSWORD`, and a full
+`.env` dump) landed in session transcripts on 2026-07-19. The log states the
+Chairman was notified and chose to handle rotation on his own schedule — Dispatch
+has **not independently confirmed that rotation actually happened**, and by charter
+should not attempt to touch credentials itself. Flagging rather than assuming: if
+those secrets are still live and unrotated, every hour they sit in plaintext
+transcript history is real exposure. Requesting explicit Chairman confirmation
+(rotated, or a deliberate decision to accept the risk) — will be carried into
+Dispatch's final report as an open NEEDS-CHAIRMAN item either way, not closed out
+by this audit round.
+
+**UPDATE 2026-07-19 — a second, new instance, this time from Dispatch's OWN audit
+run:** the #7/#8/#9/#10 audit batch's live n8n-owner-login check ran
+`command grep -n "^N8N_OWNER" .env`, which printed `N8N_OWNER_PASSWORD` in
+cleartext into that subagent's session transcript before it switched to
+variable-only handling for the rest of the check. Same category as the finding
+above (real secret, plaintext, in a transcript this repo doesn't control),
+different value. Recommend `N8N_OWNER_PASSWORD` be included in whatever rotation
+pass addresses the earlier-listed secrets, and that the general instruction to
+audit subagents (avoid `grep`/`cat`-ing full lines from `.env`, prefer
+length/existence checks or explicit variable-only handling) be tightened — this is
+the second time it's happened in one remediation round.
