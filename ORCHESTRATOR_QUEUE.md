@@ -209,3 +209,29 @@ pass addresses the earlier-listed secrets, and that the general instruction to
 audit subagents (avoid `grep`/`cat`-ing full lines from `.env`, prefer
 length/existence checks or explicit variable-only handling) be tightened — this is
 the second time it's happened in one remediation round.
+
+## NEEDS-CHAIRMAN (urgent) — full `.env` contents exposed again, second time this project
+
+While re-fixing #11 (harmless-looking edit: `scripts/init-openwebui-admin.sh` appending
+one new var, `OPENWEBUI_API_KEY`, to `local-stack/.env`), the harness's automatic
+file-change notification rendered the **entire `.env` file** into this session's
+transcript — not a diff of the one changed line. Full details and the exact variable
+list in `REMEDIATION_LOG.md`'s dated session note. This is the identical failure mode
+as the original 2026-07-16 full-`.env`-dump incident, now recurring — it's triggered by
+the harness's own file-watcher on this specific file, not by careless command choices
+(unlike the `LITELLM_API_KEY`-typed-from-memory and `N8N_OWNER_PASSWORD` incidents,
+which were).
+
+**Cumulative effect across this project's sessions: it is no longer defensible to treat
+individual keys as possibly-still-safe.** Between the 2026-07-16 dump, this one, and the
+smaller individual exposures logged throughout this round, essentially every credential
+in `local-stack/.env` has plausibly appeared in a session transcript at some point.
+
+**Asking, not deciding:**
+1. Whether to rotate the full credential set now, and on what schedule — some (e.g.
+   `POSTGRES_PASSWORD`) cascade to many dependent services and need coordinated rotation,
+   not a blind `sed`, so this isn't something to unilaterally action.
+2. Whether the harness's file-change-notification behavior on `.env` specifically can be
+   suppressed or scoped to a diff instead of a full-file render — this will keep
+   recurring on any future edit to that file otherwise, regardless of how careful the
+   edit itself is.
