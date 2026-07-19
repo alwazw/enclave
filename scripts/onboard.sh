@@ -659,6 +659,13 @@ bring_up() {
   # v3.1.2 image — real bootstrap is registering the org owner via its API.
   ensure_flowise_admin "$proj"
 
+  # n8n (#7): ships with NO owner account until the first visitor completes
+  # an interactive setup wizard — init-n8n-owner.sh existed and worked
+  # standalone but was never actually called from bring-up, so a fresh
+  # deployment silently regressed to "whoever visits :5678 first becomes
+  # owner." Same race-window logic as Open WebUI's admin claim above.
+  ensure_n8n_owner "$proj"
+
   # One-shot job containers (e.g. affine-migration) sit "Exited" forever
   # after a successful run — reads as "down" in Homepage/Portainer even
   # though exit 0 means success. Safe to remove: compose recreates and
@@ -749,6 +756,21 @@ ensure_local_model() {
   else
     docker exec "$cname" ollama pull "$model" \
       && ok "Local model ready: $model" || warn "Model pull failed — retry later."
+  fi
+}
+
+ensure_n8n_owner() {
+  local proj="$1"
+  local cname="n8n"
+  if ! docker ps --format '{{.Names}}' | grep -q "^${cname}$"; then
+    return 0  # not in this profile set
+  fi
+  info "Claiming n8n's owner account before anyone else can…"
+  if N8N_BASE_URL="http://127.0.0.1:$(_envget N8N_PORT 5678)" \
+     ENV_FILE="$ENV_FILE" bash "$REPO_DIR/scripts/init-n8n-owner.sh" >/dev/null 2>&1; then
+    ok "n8n owner account secured."
+  else
+    warn "n8n owner claim failed — reach it yourself FIRST: scripts/init-n8n-owner.sh"
   fi
 }
 
