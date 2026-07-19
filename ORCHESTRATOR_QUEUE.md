@@ -125,3 +125,36 @@ on the Chairman to resolve the other VM's poller is Dispatch's call, not mine �
 flagging rather than deciding unilaterally. If excepted: the remediation round is
 otherwise complete. If not: this stays the one blocking item, and nothing further
 can move it without cross-VM access this charter forbids.
+
+**UPDATE 2026-07-19T22:20:00Z — did a genuine host-wide re-check before re-affirming
+the above, because I found something that looked like exactly the smoking gun and
+had to rule it out properly rather than jumping on it:** `ps aux` on the bare host
+(not scoped to any one container) shows TWO separate `hermes gateway run --replace`
+process trees — the current production `hermes` container's (started today,
+matches its last recreate), and an OLDER one running continuously since **Jul 14**
+(5+ days). Traced its cgroup to container `enclave-boot-test` — a leftover
+docker-in-docker clean-room rig from the §5.4 launch-gate work (per
+`local-stack/memory/company.md`: "Clean-room artifacts still up for inspection...
+Teardown when done: `docker rm -f enclave-boot-test`" — that teardown never
+happened). It has its own fully-independent nested stack (`aef2_hermes`,
+`aef2_litellm`, `aef2_postgres`, ~19 containers, all "Up 5 days").
+
+This was a very promising lead — a second local Hermes gateway, same age as the
+conflict, would perfectly explain a persistent local `getUpdates` collision. **Ruled
+out properly, not assumed:** pulled the real process environment via
+`/proc/<pid>/environ` (not `docker exec ... env`, which can show stale
+container-declared vars rather than the live process's actual env — learned that
+distinction the hard way on #33 earlier this session) — `TELEGRAM_BOT_TOKEN` is
+absent entirely from that nested hermes's real environment, and its own
+`docker logs` has zero Telegram-related lines ever, in either container. It
+genuinely never attempts a Telegram connection. Not the cause.
+
+So the local-vs-cross-VM conclusion stands, now on stronger evidence (an exhaustive
+host-wide zombie-process check, not just a container-list scan). Separately, though:
+**`enclave-boot-test` is real, unrelated, un-flagged housekeeping** — a 5-day-old,
+~19-container docker-in-docker rig sitting idle past its own documented
+teardown note, consuming real host resources. Not touching it myself (container
+removal is destructive per this project's standing rule requiring Chairman
+confirmation, and it holds its own evidence artifacts per the memory note above) —
+flagging for whoever does the teardown pass on the unmerged branch (same "review
+before Dispatch's final report" bucket as that item).
