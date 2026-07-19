@@ -93,3 +93,35 @@ recommended follow-up item (not a blocker) in Dispatch's final report to the
 Chairman: the branch should get a deliberate human/Chairman-reviewed reconciliation
 pass (or explicit archive/delete decision) once the current remediation round is
 closed out, since it represents real uncredited work rather than dead code.
+
+## NEEDS-DISPATCH: #27 is the only remaining non-excluded open issue, and it's
+## cross-VM — asking whether the completion gate should except it
+
+This session (2026-07-19) closed #23 (full checklist, real functional tests, 9
+sub-results in `validation_run`) and #33 (real root-cause fix, AnythingLLM was
+using the wrong LLM provider class entirely). It also landed real, verified
+progress on #31 (a working Open WebUI -> Hermes shim + unified session +
+`docs/CONVERSATION_SYNC_DESIGN.md` for the remaining cross-surface half) and
+added the AIR-GAP MODE toggle (`scripts/set-airgap.sh`, verified live with zero
+cloud keys present). Open issues are now down to exactly #31 (still design-only
+by its own scope, and by this charter's own exclusion) and #27.
+
+**#27 cannot be closed from this host.** Re-confirmed this session with positive
+evidence, not just "still broken": no local (.22) process/container/cron/systemd
+unit besides this repo's own `hermes` touches `TELEGRAM_BOT_TOKEN` (checked two
+other known local candidates, both dormant); Telegram's own `getWebhookInfo`
+shows `pending_update_count: 0` while Hermes is locked out of `getUpdates` —
+proof of an ACTIVE external drainer, not a stale session (watched several
+minutes across a fresh container recreate, it never clears). This matches the
+issue's own hypothesis of a same-token poller on the Chairman's other VM, which
+this charter explicitly places out of scope (`NEVER SSH or reference
+10.10.10.27`).
+
+**The ask:** `dispatch-charter.md`'s completion gate checks that open issues are
+within `{24,25,31}` — it does not currently except #27. Since #27 is
+demonstrably not fixable from `.22` and isn't a secrets/repo-visibility/posting
+item either, deciding whether to except it (and touch `.dispatch-ready`) or wait
+on the Chairman to resolve the other VM's poller is Dispatch's call, not mine —
+flagging rather than deciding unilaterally. If excepted: the remediation round is
+otherwise complete. If not: this stays the one blocking item, and nothing further
+can move it without cross-VM access this charter forbids.
