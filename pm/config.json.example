@@ -1,5 +1,5 @@
 {
   "project": "enclave",
   "repo": "youruser/enclave",
-  "host_ip": "10.0.0.10"
+  "host_ip": "<CHANGE_ME>"
 }
