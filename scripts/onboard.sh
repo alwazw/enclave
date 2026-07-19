@@ -278,10 +278,17 @@ detect_prereqs() {
   else
     ollama_mem_gb=8
   fi
+  # #13: OLLAMA_NUM_PARALLEL also scales with core count (not a flat default)
+  # — each parallel slot roughly multiplies the loaded model's memory
+  # footprint, so only host with enough cores to plausibly serve concurrent
+  # requests get more than the conservative default of 1.
+  local ollama_num_parallel=1
+  (( cpu_count >= 8 )) && ollama_num_parallel=2
   [[ -z "$(_envget OLLAMA_CPUS)" ]] && set_env OLLAMA_CPUS "$ollama_cpus"
   [[ -z "$(_envget OLLAMA_MEM_LIMIT)" ]] && set_env OLLAMA_MEM_LIMIT "${ollama_mem_gb}g"
   [[ -z "$(_envget OLLAMA_NUM_THREADS)" ]] && set_env OLLAMA_NUM_THREADS "$ollama_cpus"
-  ok "Ollama resource governance: ${ollama_cpus} CPUs, ${ollama_mem_gb}GB RAM (of ${cpu_count} cores / ${mem_total_gb:-?}GB host total) — change OLLAMA_CPUS/OLLAMA_MEM_LIMIT in .env if you want different headroom."
+  [[ -z "$(_envget OLLAMA_NUM_PARALLEL)" ]] && set_env OLLAMA_NUM_PARALLEL "$ollama_num_parallel"
+  ok "Ollama resource governance: ${ollama_cpus} CPUs, ${ollama_mem_gb}GB RAM, NUM_PARALLEL=${ollama_num_parallel} (of ${cpu_count} cores / ${mem_total_gb:-?}GB host total) — change OLLAMA_CPUS/OLLAMA_MEM_LIMIT/OLLAMA_NUM_PARALLEL in .env if you want different headroom."
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
