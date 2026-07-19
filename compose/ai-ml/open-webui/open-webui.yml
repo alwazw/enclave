@@ -31,6 +31,10 @@ services:
       # Auth / security
       WEBUI_SECRET_KEY: ${OPENWEBUI_SECRET}
       ENABLE_SIGNUP: ${OPENWEBUI_ENABLE_SIGNUP:-false}
+      # #11: off by default (Open WebUI's own default) — needed for the Homepage
+      # dashboard widget (config/homepage/services.yaml) to authenticate its
+      # GET /api/v1/models call with a per-instance API key from the DB.
+      ENABLE_API_KEYS: "true"
       # Security hardening (2026-07-16): was "admin" — harmless only because
       # ENABLE_SIGNUP=false blocks every signup after the first, but a footgun
       # if signup is ever re-enabled (every self-registered user would get

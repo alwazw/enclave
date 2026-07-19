@@ -13,8 +13,14 @@
         container: open_webui
         widget:
           type: customapi
-          url: "http://open-webui:3000/api/v1/models"
+          # #11: container listens internally on 8080 -- 3000 is only the
+          # host-published port (open-webui.yml: "${OPENWEBUI_PORT:-3000}:8080").
+          # Also needs a real API key now that ENABLE_API_KEYS is on -- unauthenticated
+          # requests get 401.
+          url: "http://open-webui:8080/api/v1/models"
           method: GET
+          headers:
+            Authorization: "Bearer {{HOMEPAGE_VAR_OPENWEBUI_API_KEY}}"
           mappings:
             - field: data
               label: Models
