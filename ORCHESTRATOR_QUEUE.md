@@ -273,3 +273,22 @@ session's transcript. Unlike the API-key exposures already logged, this is a gen
 personal password (matches the Chairman's own name) — plausibly reused elsewhere, not a
 scoped/generated service key. Recommend treating this one as the highest-priority single
 item in whatever rotation pass addresses the accumulated exposures.
+
+## UPDATE 2026-07-20 — updated charter authorized pushing to launch/hardening; #16's push
+## blocker resolved as far as it can be without a main-branch merge
+
+Per the Chairman's updated charter, pushed 108 commits (gitleaks-clean, verified fresh
+right before push) to a new `launch/hardening` branch and opened PR #35. This resolves
+the earlier NEEDS-DISPATCH ask above about push authorization for #16's fix.
+
+Confirmed precisely why #16 still can't fully close: GitHub Actions requires a workflow
+file to exist on the **default branch** before it registers at all, even for a manual
+`workflow_dispatch` test (`gh workflow run ... --ref launch/hardening` -> 404 "not found
+on the default branch"). This is now a clean, well-understood dependency on PR #35 being
+merged to `main` — which the charter reserves for the Chairman ("NEVER push to main until
+the Chairman approves the final merge") — not a new escalation, just noting the exact
+remaining gate for whoever reviews the PR.
+
+SECRETS ROTATION remains explicitly deferred per the updated charter (do NOT act on the
+accumulated exposures above until the Chairman decides timing, after all other work is
+validated).
