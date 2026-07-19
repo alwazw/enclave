@@ -44,7 +44,7 @@ model_list:
     rpm: 3
     tpm: 40000
 
-  # ─── MAIN TIER 2: Gemini Flash + Qwen + Groq (high throughput) ───
+  # ─── MAIN TIER 2: Gemini Flash (+ Qwen/Groq DISABLED, see #26) ───
   - model_name: openai/morpheus-main-tier2
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1" }
     rpm: 15
@@ -57,14 +57,23 @@ model_list:
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3" }
     rpm: 15
     tpm: 1000000
-  - model_name: openai/morpheus-main-tier2
-    litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
-    rpm: 20
-    tpm: 60000
-  - model_name: openai/morpheus-main-tier2
-    litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
-    rpm: 30
-    tpm: 60000
+  # #26: both deployments below are DISABLED, not just retry-tuned around.
+  # `GET /health` on the live proxy independently confirms both keys are
+  # genuinely, permanently wrong (not rate-limited/transient): dashscope ->
+  # "AuthenticationError: Incorrect API key provided"; groq ->
+  # "Invalid API Key". A retry count only gives one MORE chance at a
+  # same-tier sibling -- it doesn't stop the router from occasionally
+  # landing on one of these under load (Dispatch's re-audit reproduced the
+  # raw error leaking to a client at request 27/30 with a real paced test).
+  # Re-enable only alongside a real, working key for either provider.
+  # - model_name: openai/morpheus-main-tier2
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
+  # - model_name: openai/morpheus-main-tier2
+  #   litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
+  #   rpm: 30
+  #   tpm: 60000
 
   # ─── UTILITY (JSON/tool-calling): Gemini Flash + Qwen; + typo alias ───
   - model_name: openai/morpheus-utility-model
@@ -79,10 +88,11 @@ model_list:
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3", response_format: { type: "json_object" } }
     rpm: 15
     tpm: 1000000
-  - model_name: openai/morpheus-utility-model
-    litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
-    rpm: 20
-    tpm: 60000
+  # #26: DISABLED, same confirmed-dead key as morpheus-main-tier2 above.
+  # - model_name: openai/morpheus-utility-model
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
   # Backward-compat: historic 'utitlity' typo alias → same as utility
   - model_name: openai/morpheus-utitlity-model
     litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1" }
@@ -102,10 +112,11 @@ model_list:
     litellm_params: { model: deepseek/deepseek-chat, api_key: "os.environ/DEEPSEEK_KEY_2" }
     rpm: 5
     tpm: 60000
-  - model_name: openai/morpheus-utility-tier2
-    litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
-    rpm: 30
-    tpm: 60000
+  # #26: DISABLED, same confirmed-dead GROQ_API_KEY_1 as morpheus-main-tier2 above.
+  # - model_name: openai/morpheus-utility-tier2
+  #   litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
+  #   rpm: 30
+  #   tpm: 60000
 
   # ─── TIER 3: OpenRouter free pool (3 keys) ───
   # Slug fix 2026-07-10 (T-0028): old `google/gemini-2.5-flash:free` 404s
