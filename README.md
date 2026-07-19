@@ -570,6 +570,28 @@ To add a new model, append to `config/litellm/litellm.yml` and restart LiteLLM:
 docker compose restart litellm
 ```
 
+### Air-Gap Mode
+
+`config/litellm/litellm.airgap.yml` is a second LiteLLM config whose `model_list`
+contains **only** local Ollama deployments for `openai/morpheus-main-model`,
+`-utility-model`, and `-embedding-model` (plus their alias names) — no cloud
+`model_name` entry and no `fallbacks:` block exists in that file at all. That's
+an architectural guarantee of zero cloud calls for the models the rest of the
+stack calls, not "cloud keys happen to be unset" (which would still let LiteLLM
+*attempt* an outbound request before failing over).
+
+```bash
+scripts/set-airgap.sh on      # relink config.yml -> litellm.airgap.yml, recreate litellm
+scripts/set-airgap.sh status  # show which config is active
+scripts/set-airgap.sh off     # restore the normal multi-provider cascade
+```
+
+Requires `dolphin3` and `deepseek-r1:8b` already pulled into the `ollama`
+container (`docker exec ollama ollama pull dolphin3`, etc. — see
+[Step 3 — Pull Models](#step-3--pull-models-first-run)). Verified live: a real
+chat completion through `openai/morpheus-main-model` succeeds end-to-end with
+every cloud API key absent from the environment.
+
 ### SearXNG Search Engines
 
 Configured in `config/searxng/settings.yml`. Default enabled engines:
