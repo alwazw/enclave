@@ -11,10 +11,16 @@ services:
     environment:
       STORAGE_DIR: /app/server/storage
       JWT_SECRET: ${ANYTHINGLLM_JWT}
-      LLM_PROVIDER: openai
-      OPENAI_BASE_PATH: "http://litellm:${LITELLM_PORT:-4000}/v1"
-      OPEN_AI_KEY: ${LITELLM_API_KEY}
-      OPEN_MODEL_PREF: ${HERMES_DEFAULT_MODEL:-llama3.2:latest}
+      # #33: AnythingLLM's "openai" provider class (utils/AiProviders/openAi/index.js)
+      # never reads OPENAI_BASE_PATH at all -- it always calls real api.openai.com,
+      # so a LiteLLM virtual key here just gets a real (and correctly earned) 401
+      # from OpenAI, not from us. AnythingLLM ships a purpose-built "litellm"
+      # provider instead (utils/AiProviders/liteLLM) -- use that, not "openai".
+      LLM_PROVIDER: litellm
+      LITE_LLM_BASE_PATH: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      LITE_LLM_API_KEY: ${LITELLM_API_KEY}
+      LITE_LLM_MODEL_PREF: ${HERMES_DEFAULT_MODEL:-openai/morpheus-main-model}
+      LITE_LLM_MODEL_TOKEN_LIMIT: "4096"
       EMBEDDING_ENGINE: native
       VECTOR_DB: qdrant
       QDRANT_ENDPOINT: "http://qdrant:${QDRANT_PORT_HTTP:-6333}"
