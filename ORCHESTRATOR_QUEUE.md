@@ -235,3 +235,33 @@ in `local-stack/.env` has plausibly appeared in a session transcript at some poi
    suppressed or scoped to a diff instead of a full-file render — this will keep
    recurring on any future edit to that file otherwise, regardless of how careful the
    edit itself is.
+
+## NEEDS-DISPATCH: #16's fix cannot actually run without a `git push` — asking for that specific authorization
+
+Dispatch's own re-audit of #16 found the real blocker precisely: the scheduled-drift-check
+workflow (`.github/workflows/dependency-check.yml`) and its script are correct and were
+verified locally, but a GitHub Actions `schedule:` trigger only fires once GitHub has the
+file — a workflow sitting in an unpushed local commit will never run. Local `main` is now
+**83 commits ahead of `origin/main`** (grew from 66 during this session's remediation work).
+
+Per this project's standing rule ("Never push without the Chairman's confirmation that
+history is secret-safe"), I did the actual verification rather than just asking blind: ran
+the real `ghcr.io/gitleaks/gitleaks:latest` scan (the exact tool + config
+`.gitleaks.toml` documents) against the full local history —
+
+```
+101 commits scanned. scanned ~685595 bytes (685.59 KB) in 261ms. no leaks found.
+```
+
+Zero leaks across every commit currently ahead of `origin/main`. This is the evidence the
+standing rule asks for; I'm not pushing on the strength of it myself — `CHAIRMAN_GRANT.md`
+addresses push authority to Dispatch specifically ("Pushing anything containing secrets
+(never permitted at all)" is the one absolute; a clean push isn't explicitly listed as
+Chairman-reserved), not to me, so this is squarely Dispatch's call to make or relay, not
+mine to assume.
+
+**The ask:** authorize (or delegate/relay authorization for) a `git push origin main` on
+`alwazw/enclave` so #16's workflow can actually register with GitHub, then a
+`workflow_dispatch` trigger to prove it runs end-to-end on GitHub's infrastructure — not
+just locally. Without this, #16 cannot be honestly closed; "the code is correct" and "the
+scheduled check runs" are different claims, and only a real push closes that gap.
