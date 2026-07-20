@@ -28,7 +28,7 @@ tiers when available, local CPU/GPU inference as the floor).
 > Internally the compose project keeps the codename `aef2` — renaming it would re-namespace
 > volumes/networks; brand and project name are deliberately decoupled.
 
-**Docs:** [Governance & threat model](docs/GOVERNANCE.md) · [Candid comparison vs Paperclip/MetaGPT/CrewAI/LangGraph](docs/COMPARISON.md) · [The Registrar](registrar/README.md) · [Demo shot script](docs/DEMO-SHOT-SCRIPT.md) · [Media production instructions](docs/MEDIA-PRODUCTION-INSTRUCTIONS.md)
+**Docs:** [Governance & threat model](docs/GOVERNANCE.md) · [Candid comparison vs Paperclip/MetaGPT/CrewAI/LangGraph](docs/COMPARISON.md) · [The Registrar](registrar/README.md) · [Demo shot script](docs/DEMO-SHOT-SCRIPT.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Compose_V2-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)

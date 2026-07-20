@@ -1,4 +1,18 @@
 # ==========================================================
+# 0. Internal session working/log files (Chairman/CEO/Dispatch operational
+#    audit trail -- real, valuable locally, but not product documentation;
+#    kept on disk for local automation, never shipped in the public mirror)
+# ==========================================================
+/ORCHESTRATOR_QUEUE.md
+/REMEDIATION_LOG.md
+/CHAIRMAN_GRANT.md
+
+# Launch/media materials — drafted locally for the Chairman to review, film,
+# and post; not product documentation, kept local-only.
+/docs/SOCIAL-POST-DRAFTS.md
+/docs/MEDIA-PRODUCTION-INSTRUCTIONS.md
+
+# ==========================================================
 # 1. Secrets (Always ignore local secrets!)
 # ==========================================================
 .env

@@ -43,6 +43,24 @@ regex = '''(?i)\b[0-9a-f]{37}\b'''
 keywords = ["cloudflare", "dns", "zone"]
 
 [[rules]]
+id = "personal-identifier-name"
+description = "Chairman's personal name/handle (must never regress into a public showcase repo)"
+regex = '''(?i)\b(wafic|wazzan)\b'''
+keywords = ["wafic", "wazzan"]
+
+[[rules]]
+id = "personal-identifier-email"
+description = "Chairman's personal email address"
+regex = '''(?i)\bwafic@wazzan\.[a-z]{2,}\b'''
+keywords = ["wafic@wazzan"]
+
+[[rules]]
+id = "personal-identifier-private-ip"
+description = "This deployment's specific private-network host IPs (10.10.10.x) — must stay genericized as $HOST_IP/HOST_IP in every tracked file"
+regex = '''\b10\.10\.10\.\d{1,3}\b'''
+keywords = ["10.10.10"]
+
+[[rules]]
 id = "generic-env-assignment-secret"
 description = "High-entropy value assigned to a *_KEY / *_TOKEN / *_SECRET / *_PASSWORD var"
 regex = '''(?i)\b([A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASS)[A-Z0-9_]*)\s*[:=]\s*['"]?([A-Za-z0-9+/_\-]{20,})['"]?'''
@@ -53,10 +71,12 @@ keywords = ["key", "token", "secret", "password", "pass"]
 [allowlist]
 description = "Ignore documented placeholders and example/template env files"
 # Never scan the example/template scaffolds — they carry placeholders by design.
+# README.md is deliberately NOT exempted: it's the most-copied file in the repo,
+# and the personal-identifier rules below must be able to catch a regression
+# there too, not just in scripts/config.
 paths = [
   '''\.env\.example$''',
   '''\.env\.template$''',
-  '''(^|/)README\.md$''',
   '''(^|/)memory/''',
   '''(^|/)pm/''',
 ]
