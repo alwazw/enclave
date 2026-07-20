@@ -234,13 +234,21 @@ The bootstrap script will:
 
 ### Step 3 — Pull Models (first run)
 
-```bash
-./setup.sh --pull-models
-# or on Windows:
-.\setup.ps1 -PullModels
-```
+This depends on which Step 2 path you took — the two installers handle it differently:
 
-`onboard.sh` auto-pulls one local offline-floor model (`OLLAMA_DEFAULT_MODEL`, default `llama3.2:latest`) the first time it brings the stack up. Everything else — the actual reasoning/utility model pools — is routed through LiteLLM to external providers (Gemini, DeepSeek, OpenRouter, Novita, NVIDIA NIM), with Ollama models (`dolphin3`, `deepseek-r1:8b`, `nomic-embed-text`) wired in only as the final local fallback tier. Pull additional Ollama models yourself: `docker exec ollama ollama pull <model>`.
+- **`setup.ps1` (Windows)** hands off entirely to `scripts/onboard.sh` inside WSL2, which
+  auto-pulls one local offline-floor model (`OLLAMA_DEFAULT_MODEL`, default
+  `llama3.2:latest`) automatically the first time it brings the stack up — no separate
+  flag or step needed. (`setup.ps1` has no `-PullModels` parameter; it doesn't need one.)
+- **`setup.sh` (Linux/macOS/WSL2)** is a separate, simpler installer that does *not* call
+  `onboard.sh` — it only pulls Ollama models if you explicitly pass `--pull-models`:
+  ```bash
+  ./setup.sh --pull-models
+  ```
+  If you ran `./scripts/onboard.sh` directly instead of `./setup.sh`, the auto-pull above
+  already happened for you.
+
+Everything else — the actual reasoning/utility model pools — is routed through LiteLLM to external providers (Gemini, DeepSeek, OpenRouter, Novita, NVIDIA NIM), with Ollama models (`dolphin3`, `deepseek-r1:8b`, `nomic-embed-text`) wired in only as the final local fallback tier. Pull additional Ollama models yourself: `docker exec ollama ollama pull <model>`.
 
 ### Step 4 — Open the Dashboard
 

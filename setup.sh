@@ -251,11 +251,14 @@ if [[ "$PULL_MODELS" == true ]]; then
     sleep 2
   done
 
+  # #24 regression (container names dropped the ${PROJECT_NAME}_ prefix; this
+  # exec target was never updated when that fix landed -- "ollama" is the
+  # real live container name, not "${PROJECT_NAME}_ollama").
   for model in "${DEFAULT_MODELS[@]}"; do
     info "Pulling $model..."
-    docker exec "${PROJECT_NAME}_ollama" ollama pull "$model" \
+    docker exec ollama ollama pull "$model" \
       && log "Pulled: $model" \
-      || warn "Failed to pull: $model (retry manually: docker exec ${PROJECT_NAME}_ollama ollama pull $model)"
+      || warn "Failed to pull: $model (retry manually: docker exec ollama ollama pull $model)"
   done
 fi
 
