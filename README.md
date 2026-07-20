@@ -390,6 +390,12 @@ Skills are loaded from `agents/hermes/skills/` and follow the [SKILL.md format](
 | `workflow-builder` | *workflow, automation, n8n, flowise, trigger* | n8n + Flowise API CRUD with template library |
 | `surreal-memory` | *remember, entity, graph, who is, relationship* | SurrealQL entity graph: people, projects, events, relationships |
 
+### Telegram Access
+
+Hermes can also be reached over Telegram: set `TELEGRAM_BOT_TOKEN` (from [@BotFather](https://t.me/BotFather)) and `TELEGRAM_ID` (your numeric Telegram user id) in `.env`, then restart the `hermes` container.
+
+**One bot token = exactly one running instance.** Telegram's `getUpdates` long-polling API only allows a single active poller per bot token — if two processes (two containers, two hosts, an old deployment you forgot to tear down) hold the same token at once, the loser gets a `409 Conflict: terminated by other getUpdates request`. This is a constraint of Telegram's API, not a Hermes defect. Hermes's own adapter handles this correctly: on a conflict it logs a warning and retries with escalating backoff (`Telegram polling conflict (1/5) — waiting Ns for it to expire`) rather than hanging or crashing — the connection recovers automatically the moment it's the only instance holding that token. If you see this warning persist indefinitely, check for another process or deployment still using the same token; a fresh clone with its own distinct bot token has no rival poller and connects on the first attempt.
+
 ### Adding a New Skill
 
 1. Create a folder: `agents/hermes/skills/my-skill/`
