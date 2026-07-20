@@ -376,3 +376,19 @@ Verified by running the script directly post-fix: "`.dispatch-ready` present -> 
 nudge" (vs. three prior "CEO idle -> nudge" lines in `.keepalive.log` before the fix).
 Not committed to git (this file isn't tracked in the repo — matches `.keepalive.lock`,
 `.dispatch-watch.lock` etc. as local host-only automation state).
+
+## NEEDS-DISPATCH — ux-validate + ceo governance services never deployed (2026-07-20)
+
+Found during the END-GAME regression sweep (step 2), while verifying the Registrar
+evidence-gate probe: `compose/governance/registrar/registrar.yml` was in `enclave`'s
+`local-stack.yml` include list but had never been synced to the live `local-stack` host
+at all (fixed this round — see `REMEDIATION_LOG.md`). The same is true for its two
+siblings, `compose/governance/ux-validate/ux-validate.yml` and
+`compose/governance/ceo/ceo.yml` — both exist only in the `enclave` git repo, both are
+absent from `local-stack.yml`'s include list and from `local-stack`'s filesystem
+entirely. Deliberately NOT bringing these two up this round: they weren't named in the
+Chairman's 5-probe regression list, and each is a bigger, previously-never-tested unit
+(a Playwright screenshot-gate service and a LangGraph CEO supervisor) that deserves its
+own scoped bring-up + verification pass rather than a same-breath addition alongside the
+named sweep. Flagging so this doesn't silently stay "documented as shipped, never
+actually live" — same class of gap as the Registrar one, just not yet fixed.
