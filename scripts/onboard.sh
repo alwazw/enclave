@@ -260,15 +260,26 @@ detect_prereqs() {
     [[ "$IS_WSL" == true ]] && ui_note "On WSL2, GPU needs a recent NVIDIA driver on Windows +" \
             "Docker Desktop GPU support. CPU fallback works regardless."
   fi
+}
 
-  # #10: Ollama had ZERO resource governance — nothing stopped a local
-  # inference run from starving the rest of the service mesh (docker inspect
-  # showed literal 0/0/0 for Memory/NanoCpus/CpuShares). Compute host-aware
-  # defaults and persist them, so ollama.yml's compose-enforced cpu/memory
-  # limits are non-zero and configurable, not just "whatever's left over."
-  # Reserve 2 cores and half the host's RAM for the other ~30 containers
-  # rather than letting Ollama claim everything by default.
-  local cpu_count mem_total_gb ollama_cpus ollama_mem_gb
+# #10/#13: Ollama had ZERO resource governance — nothing stopped a local
+# inference run from starving the rest of the service mesh (docker inspect
+# showed literal 0/0/0 for Memory/NanoCpus/CpuShares). Compute host-aware
+# defaults and persist them, so ollama.yml's compose-enforced cpu/memory
+# limits are non-zero and configurable, not just "whatever's left over."
+# Reserve 2 cores and half the host's RAM for the other ~30 containers
+# rather than letting Ollama claim everything by default.
+#
+# Deliberately NOT part of detect_prereqs(): that function runs before
+# generate_env() creates .env on a genuinely fresh clone, and set_env/
+# _envget silently auto-create the file on first write (`>> "$ENV_FILE"`
+# succeeds even when the file doesn't exist yet, even under `set -e` --
+# verified empirically). A detect_prereqs-time write would make generate_env
+# see a pre-existing (bogus, 4-line) .env and hit its overwrite-confirmation
+# path on what should be a clean first run. This runs in bring_up(),
+# strictly after generate_env(), where .env is guaranteed to already exist.
+configure_ollama_resources() {
+  local cpu_count mem_total_gb ollama_cpus ollama_mem_gb ollama_num_parallel
   cpu_count=$(nproc 2>/dev/null || echo 4)
   mem_total_gb=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}')
   ollama_cpus=$(( cpu_count > 2 ? cpu_count - 2 : 1 ))
@@ -278,16 +289,16 @@ detect_prereqs() {
   else
     ollama_mem_gb=8
   fi
-  # #13: OLLAMA_NUM_PARALLEL also scales with core count (not a flat default)
-  # — each parallel slot roughly multiplies the loaded model's memory
-  # footprint, so only host with enough cores to plausibly serve concurrent
+  # OLLAMA_NUM_PARALLEL also scales with core count (not a flat default) --
+  # each parallel slot roughly multiplies the loaded model's memory
+  # footprint, so only hosts with enough cores to plausibly serve concurrent
   # requests get more than the conservative default of 1.
-  local ollama_num_parallel=1
+  ollama_num_parallel=1
   (( cpu_count >= 8 )) && ollama_num_parallel=2
-  [[ -z "$(_envget OLLAMA_CPUS)" ]] && set_env OLLAMA_CPUS "$ollama_cpus"
-  [[ -z "$(_envget OLLAMA_MEM_LIMIT)" ]] && set_env OLLAMA_MEM_LIMIT "${ollama_mem_gb}g"
-  [[ -z "$(_envget OLLAMA_NUM_THREADS)" ]] && set_env OLLAMA_NUM_THREADS "$ollama_cpus"
-  [[ -z "$(_envget OLLAMA_NUM_PARALLEL)" ]] && set_env OLLAMA_NUM_PARALLEL "$ollama_num_parallel"
+  [[ -z "$(_envget OLLAMA_CPUS "")" ]] && set_env OLLAMA_CPUS "$ollama_cpus"
+  [[ -z "$(_envget OLLAMA_MEM_LIMIT "")" ]] && set_env OLLAMA_MEM_LIMIT "${ollama_mem_gb}g"
+  [[ -z "$(_envget OLLAMA_NUM_THREADS "")" ]] && set_env OLLAMA_NUM_THREADS "$ollama_cpus"
+  [[ -z "$(_envget OLLAMA_NUM_PARALLEL "")" ]] && set_env OLLAMA_NUM_PARALLEL "$ollama_num_parallel"
   ok "Ollama resource governance: ${ollama_cpus} CPUs, ${ollama_mem_gb}GB RAM, NUM_PARALLEL=${ollama_num_parallel} (of ${cpu_count} cores / ${mem_total_gb:-?}GB host total) — change OLLAMA_CPUS/OLLAMA_MEM_LIMIT/OLLAMA_NUM_PARALLEL in .env if you want different headroom."
 }
 
@@ -449,6 +460,12 @@ generate_env() {
   else
     collect_keys_flow
   fi
+
+  # 3f. Ollama resource governance (#10/#13) -- must run here, after .env
+  # definitely exists, and before bring_up()'s `docker compose up` creates
+  # the ollama container, so it picks up real values on first boot instead
+  # of the compose file's generic fallback defaults.
+  configure_ollama_resources
 }
 
 # ── FREE path: optionally paste genuinely-free keys (no card, fail-closed) ────
