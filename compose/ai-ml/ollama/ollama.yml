@@ -1,0 +1,58 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_ORIGINS: "*"
+      # #10: was hardcoded 24h with no override -- a warm-but-idle model held
+      # RAM for a full day. Configurable, shorter default.
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      # #10: computed host-aware at bring-up (onboard.sh's detect_prereqs) and
+      # persisted to .env -- was entirely absent before, so Ollama used every
+      # core with no self-imposed concurrency ceiling either.
+      OLLAMA_NUM_THREADS: ${OLLAMA_NUM_THREADS:-4}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      # GPU is OPTIONAL (bonus tier — see README): the default boot is CPU-only so a
+      # no-GPU clone works out of the box. To enable NVIDIA acceleration, ALSO pass
+      # the override:  -f compose/ai-ml/ollama/ollama.gpu.yml
+    deploy:
+      resources:
+        limits:
+          # #10: was completely absent -- `docker inspect`'s HostConfig showed
+          # literal 0/0/0 for Memory/NanoCpus/CpuShares, i.e. zero governance,
+          # so a local inference run could starve the rest of the service
+          # mesh. Host-aware defaults (nproc-2 cores, half of host RAM) are
+          # computed once at bring-up and persisted to .env -- override
+          # OLLAMA_CPUS/OLLAMA_MEM_LIMIT there for different headroom.
+          cpus: "${OLLAMA_CPUS:-4}"
+          memory: ${OLLAMA_MEM_LIMIT:-8g}
+    labels:
+      homepage.group: AI Infrastructure
+      homepage.name: Ollama
+      homepage.icon: ollama.png
+      homepage.href: http://localhost:${OLLAMA_PORT:-11434}
+      homepage.description: Local model server — all LLM inference routes through LiteLLM→Ollama
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "perl -MIO::Socket::INET -e 'my $$s=IO::Socket::INET->new(PeerHost=>\"localhost\",PeerPort=>11434,Proto=>\"tcp\") or exit 1; print $$s \"GET /api/tags HTTP/1.0\r\nHost: localhost\r\n\r\n\"; while(<$$s>){exit 0 if /200 OK/} exit 1'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  ollama_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

@@ -1,0 +1,245 @@
+# MCP Servers — stdio MCP reference servers exposed over the network by supergateway.
+#
+# TRANSPORT = STATEFUL STREAMABLE-HTTP (endpoint: :8000/mcp), NOT legacy SSE.
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY (root cause of the T-0041/FIX-B restart loop): supergateway's default
+# stdio→SSE mode wraps the child stdio server behind a SINGLE MCP `Protocol`
+# instance. When a SECOND concurrent SSE client connects, the MCP SDK throws
+#   "Already connected to a transport. Call close() before connecting to a new
+#    transport, or use a separate Protocol instance per connection."
+# and the process crashes. We have TWO consumers (mcpo for Open WebUI AND
+# Hermes), so every shared server crash-looped (filesystem hit 35 restarts).
+#
+# FIX: run supergateway in `--outputTransport streamableHttp --stateful`. In
+# stateful Streamable-HTTP mode supergateway spins up a SEPARATE child +
+# Protocol/transport instance PER SESSION — i.e. "a separate Protocol instance
+# per connection", exactly what the error demands. Concurrent consumers each get
+# their own session → no crash. Verified: 2 concurrent clients, RestartCount 0.
+#
+# CONSUMERS (both now speak Streamable-HTTP to :8000/mcp):
+#   - mcpo   → config/mcpo/config.json  ("type": "streamable-http", url .../mcp)
+#   - Hermes → agents/hermes/hermes-config.yaml (bare url → Streamable-HTTP default)
+#
+# HEALTHCHECK: node:22-alpine has no curl/wget, so we use `node -e` http probe
+# against supergateway's `--healthEndpoint /healthz` (returns "ok"/200). This
+# makes a crash VISIBLE (unhealthy) instead of silently masked by restart loops.
+#
+# WHY GLOBAL npm-install (not `npx -y` at spawn): stateful mode spawns a FRESH
+# child per session. If that child is `npx -y <pkg>`, two concurrent sessions
+# race on the shared npx cache (/root/.npm/_npx) and corrupt it —
+#   npm error ENOTEMPTY: rmdir ... / ERR_MODULE_NOT_FOUND ... server-memory
+# — crashing the child. So each container `npm i -g` the server ONCE at boot
+# (serial, before any session) and supergateway spawns the installed BINARY
+# directly (mcp-server-*). Per-session spawn is then instant and race-free.
+# (The tools-profile servers below keep `npx` — they have a single consumer
+# (mcpo only), so no concurrent spawn, no race. surrealdb/docker packages are
+# 404 on npm and were already non-functional; left as-is, out of FIX-B scope.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-mcp-healthcheck: &mcp-healthcheck
+  # node http GET /healthz — exit 0 only on HTTP 200 from supergateway's health endpoint.
+  test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8000/healthz',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"]
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 90s   # first boot pays `npm i -g` of supergateway + the child server
+
+services:
+  mcp-filesystem:
+    image: node:22-alpine
+    container_name: mcp_filesystem
+    restart: unless-stopped
+    profiles: [core]
+    command: >
+      sh -c "npm i -g supergateway @modelcontextprotocol/server-filesystem &&
+      exec supergateway --stdio 'mcp-server-filesystem /workspace'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_FS_PORT:-3701}:8000"
+    volumes:
+      - mcp_workspace:/workspace
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net]
+
+  mcp-memory:
+    image: node:22-alpine
+    container_name: mcp_memory
+    restart: unless-stopped
+    profiles: [core]
+    command: >
+      sh -c "npm i -g supergateway @modelcontextprotocol/server-memory &&
+      exec supergateway --stdio 'mcp-server-memory'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_MEMORY_PORT:-3702}:8000"
+    volumes:
+      - mcp_memory_data:/data
+    environment:
+      MEMORY_FILE_PATH: /data/memory.json
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net]
+
+  # ── mcp-fetch: FIXED 2026-07-13 ─────────────────────────────────────────
+  # The old ref `@modelcontextprotocol/server-fetch` is 404 on npm — CONFIRMED
+  # (registry.npmjs.org returns 404). The equally-plausible-looking unscoped
+  # npm name `mcp-server-fetch` was checked as a candidate and is a TRAP: it
+  # resolves to a published "npx confusion" SECURITY-RESEARCH CANARY package
+  # (maintainer "node-canaries", repo github.com/theinfosecguy/npx-canary) —
+  # deliberately squatting this exact name to catch agents/tools that install
+  # unscoped names without checking. Installing it would have executed its
+  # code (telemetry beacon, by its own disclosure — but the point stands: it
+  # is NOT the real server). DO NOT wire the npm package `mcp-server-fetch`.
+  # The REAL official fetch server (Anthropic, modelcontextprotocol/servers,
+  # src/fetch) is a PYTHON package published to PyPI as `mcp-server-fetch`
+  # (confirmed: pypi.org/pypi/mcp-server-fetch, author "Anthropic, PBC.",
+  # console-script entrypoint `mcp-server-fetch`). Verified end-to-end in a
+  # throwaway node:22-alpine container: `apk add python3 py3-pip` + `pip
+  # install --break-system-packages mcp-server-fetch` installs cleanly and
+  # `mcp-server-fetch --help` runs. Alpine's py3-pip is PEP-668
+  # externally-managed, hence --break-system-packages (safe here — this
+  # container's only job is running this one MCP server).
+  mcp-fetch:
+    image: node:22-alpine
+    container_name: mcp_fetch
+    restart: unless-stopped
+    profiles: [tools]
+    command: >
+      sh -c "apk add --no-cache python3 py3-pip &&
+      pip install --break-system-packages --no-cache-dir mcp-server-fetch &&
+      npm i -g supergateway &&
+      exec supergateway --stdio 'mcp-server-fetch'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_FETCH_PORT:-3703}:8000"
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net]
+
+  mcp-github:
+    image: node:22-alpine
+    container_name: mcp_github
+    restart: unless-stopped
+    profiles: [core]
+    command: >
+      sh -c "npm i -g supergateway @modelcontextprotocol/server-github &&
+      exec supergateway --stdio 'mcp-server-github'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_GITHUB_PORT:-3704}:8000"
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_TOKEN:-}
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net]
+
+  mcp-postgres:
+    image: node:22-alpine
+    container_name: mcp_postgres
+    restart: unless-stopped
+    profiles: [core]
+    command: >
+      sh -c "npm i -g supergateway @modelcontextprotocol/server-postgres &&
+      exec supergateway --stdio
+      'mcp-server-postgres postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB}'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_PG_PORT:-3705}:8000"
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net, database-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── mcp-surrealdb: STILL BLOCKED 2026-07-13 (verified empirically, not the
+  # same failure as before — do not count this as fixed) ────────────────────
+  # The old ref `mcp-server-surrealdb` is 404 on npm — CONFIRMED. The
+  # proposed replacement `surrealdb-mcp-server` (npm) DOES exist, installs
+  # cleanly, and its env contract
+  # (SURREALDB_URL/NS/DB/USER/PASS) matches what was already wired here.
+  # BUT: end-to-end tested against our REAL running surrealdb container
+  # (surrealdb, image `surrealdb/surrealdb:latest` = v3.1.3) from a
+  # throwaway container on aef2_database net — transport connects, auth
+  # succeeds, and then the package's pinned `surrealdb` JS SDK (^1.3.2, only
+  # version ever published, last npm release 2025-07-15 — effectively
+  # abandoned) HARD-REJECTS the server: `The version "3.1.3" reported by the
+  # engine is not supported by this library, expected a version that
+  # satisfies ">= 1.4.2 < 3.0.0"`. No newer surrealdb-mcp-server version or
+  # working alternative exists on npm (searched; only a same-version mirror
+  # republish exists, not a fix). Also note: SURREALDB_URL must be `ws://`
+  # (not the old `http://`) for this SDK's connect() — moot until the
+  # version block is resolved. NOT fixing by downgrading the shared
+  # SurrealDB server (would risk Hermes' live graph-memory data, out of
+  # scope of an MCP package fix). Left DISABLED (profiles: [disabled], never
+  # started by any real `--profile` flag) rather than wired-and-broken.
+  # Revisit if the package publishes a v2+ SDK-compatible release, or file a
+  # scoped task to patch/fork it.
+  mcp-surrealdb:
+    image: node:22-alpine
+    container_name: mcp_surrealdb
+    restart: "no"
+    profiles: [disabled]
+    command: >
+      sh -c "npm i -g surrealdb-mcp-server &&
+      exec supergateway --stdio 'surrealdb-mcp-server'
+      --outputTransport streamableHttp --stateful --healthEndpoint /healthz"
+    ports:
+      - "${MCP_SURREAL_PORT:-3706}:8000"
+    environment:
+      SURREALDB_URL: ws://surrealdb:${SURREALDB_PORT:-8000}/rpc
+      SURREALDB_USER: ${SURREALDB_USER}
+      SURREALDB_PASS: ${SURREALDB_PASS}
+      SURREALDB_NS: ${HERMES_SURREAL_NS:-aef}
+      SURREALDB_DB: ${HERMES_SURREAL_DB:-hermes}
+    healthcheck: *mcp-healthcheck
+    networks: [backend-net, database-net]
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+
+  # ── mcp-docker: DEFERRED 2026-07-13, deliberately NOT wired ─────────────
+  # The old ref `@modelcontextprotocol/server-docker` is 404 on npm —
+  # CONFIRMED, and there is NO official equivalent (checked
+  # modelcontextprotocol/servers' own repo: only everything/fetch/
+  # filesystem/git/memory/sequentialthinking/time exist, no docker server).
+  # The one plausible 3rd-party candidate, `docker-mcp-server` (npm v2.1.1,
+  # github.com/kenforthewin/docker-mcp-server), DOES exist and installs, but
+  # was NOT wired here: single individual maintainer, ~263 downloads/month,
+  # last published 2025-12-27 (stale), and — the actual blocker — running it
+  # for real requires mounting `/var/run/docker.sock` into a THIRD container
+  # (this compose file never had that mount for mcp-docker; it would be new
+  # exposure). CTO/Security/Engineering have independently flagged
+  # docker.sock as this stack's single highest-blast-radius exposure
+  # (`:ro` is not a control — it only blocks writing to the socket FILE, not
+  # which Docker API operations — start/stop/exec/mount arbitrary volumes —
+  # can be issued once connected) and explicitly called mcp-docker's
+  # currently-unwired state a GOOD thing, not a gap to close casually.
+  # Wiring host-container-control on a single-maintainer/low-adoption
+  # package's trust basis is not a responsible call to make unilaterally.
+  # Left DISABLED (profiles: [disabled]) with no docker.sock mount. Revisit
+  # only with an explicit Chairman go-ahead on the security trade-off, and
+  # prefer Docker's own official MCP toolkit/gateway if one becomes a good
+  # fit for this compose architecture, over this candidate.
+  mcp-docker:
+    image: node:22-alpine
+    container_name: mcp_docker
+    restart: "no"
+    profiles: [disabled]
+    command: sh -c "echo 'mcp-docker is deliberately disabled — see comment above this service in compose/ai-ml/mcp-servers/mcp-servers.yml' && sleep infinity"
+    ports:
+      - "${MCP_DOCKER_PORT:-3707}:8000"
+    # No healthcheck: nothing listens on :8000 while disabled (placeholder
+    # `sleep infinity`, no supergateway/health endpoint running) — a
+    # healthcheck here would just be permanently red noise.
+    networks: [backend-net]
+
+volumes:
+  mcp_workspace:
+    external: true
+  mcp_memory_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

@@ -1,0 +1,121 @@
+services:
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ⚠ STATUS: STILL BLOCKED — do NOT bring this profile up expecting it to
+  #  work. Two NEW blockers found 2026-07-13 while executing the "simple
+  #  repin" Phase-A task (verified empirically, not assumed):
+  #
+  #  1. mem0/mem0-api-server:latest is ARM64-ONLY on Docker Hub.
+  #     `docker manifest inspect mem0/mem0-api-server:latest` returns exactly
+  #     2 platform entries: {arch: arm64, os: linux} and an "unknown/unknown"
+  #     attestation manifest — NO linux/amd64 entry exists. `docker pull`
+  #     (with and without --platform linux/amd64) fails with "no matching
+  #     manifest for linux/amd64" on this host (${HOST_IP} is x86_64). The
+  #     old mem0ai/mem0:latest 404 has been traded for a platform-mismatch
+  #     failure, not fixed — this image genuinely cannot run here as pulled.
+  #  2. Even setting arch aside: this image's server (mem0ai/mem0 GitHub,
+  #     server/main.py, DEFAULT_CONFIG) HARDCODES `vector_store.provider:
+  #     "pgvector"` — there is zero Qdrant code path in this package (grepped
+  #     main.py/db.py/server_state.py/schemas.py/auth.py — no "qdrant" hit
+  #     anywhere). pgvector requires the Postgres `vector` EXTENSION; this
+  #     stack's shared Postgres is plain `postgres:16-alpine`
+  #     (compose/database/postgres/postgres.yml) with no pgvector build.
+  #     Reconciling env var NAMES (below) is necessary but NOT sufficient —
+  #     without a pgvector-capable Postgres this will crash on first write.
+  #     It also needs a SECOND database (`APP_DB_NAME`, default `mem0_app`,
+  #     for auth/users/api-keys) which is not currently provisioned — only
+  #     `mem0` (the vector/memories DB) exists today.
+  #
+  #  Recommendation to CEO: treat mem0 as a second DEFER candidate alongside
+  #  open-interpreter, not a same-session fix — either (a) build a custom
+  #  amd64 image from mem0ai/mem0's own server/Dockerfile (official source,
+  #  not a random re-push) + stand up a dedicated pgvector-enabled Postgres
+  #  instance, or (b) defer outright — Product already flagged mem0 as
+  #  possibly redundant with Hermes' native T-0030 memory (holographic/
+  #  SQLite, already deep-validated, already restart-surviving).
+  #
+  #  Everything below is the BEST-KNOWN-CORRECT config against the real
+  #  upstream contract (verified against mem0ai/mem0 GitHub `server/`:
+  #  main.py, db.py, auth.py, init-db.sh, requirements.txt, Dockerfile) —
+  #  kept accurate for whenever arch+pgvector are resolved, but this
+  #  service must stay `profiles: [memory]` (opt-in only) and should NOT be
+  #  counted as fixed in any bring-up checklist until re-validated end to end.
+  # ═══════════════════════════════════════════════════════════════════════
+  mem0:
+    image: mem0/mem0-api-server:latest
+    container_name: mem0
+    restart: unless-stopped
+    profiles: [memory]
+    ports:
+      # Real image EXPOSEs/binds 8000 (server/Dockerfile CMD: uvicorn --port
+      # 8000). The old :8080 internal mapping was wrong for this image.
+      - "${MEM0_PORT:-8888}:8000"
+    volumes:
+      # Real history db path (server/main.py: HISTORY_DB_PATH default
+      # /app/history/history.db) — NOT /app/.mem0 (that was the old image's
+      # path convention).
+      - mem0_data:/app/history
+    environment:
+      # ── Vector store (pgvector, hardcoded provider — see header) ───────
+      # main.py builds vector_store.config from POSTGRES_HOST/PORT/POSTGRES_DB
+      # (memories DB, NOT the auth DB)/POSTGRES_USER/POSTGRES_PASSWORD/
+      # POSTGRES_COLLECTION_NAME. QDRANT_* is intentionally REMOVED below —
+      # this image never reads it (dead env in the old config).
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB_MEM0:-mem0}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_COLLECTION_NAME: memories
+      # ── Second DB for auth/users/api-keys (db.py: APP_DB_NAME, separate
+      # from POSTGRES_DB above). NOT YET PROVISIONED on this host — must be
+      # created (see init-db.sh pattern) before this service can boot clean.
+      APP_DB_NAME: ${MEM0_APP_DB_NAME:-mem0_app}
+      # ── LLM/embedder: OpenAI-compatible client, routed at litellm. The
+      # openai python SDK reads OPENAI_BASE_URL from env by convention when
+      # no base_url is passed explicitly; mem0ai's OpenAI provider classes
+      # follow the same SDK convention (reasoned from SDK behavior, not
+      # exhaustively proven against mem0ai's internals — re-verify on first
+      # real bring-up attempt).
+      OPENAI_BASE_URL: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      OPENAI_API_KEY: ${LITELLM_API_KEY}
+      # Real var names (main.py): MEM0_DEFAULT_LLM_MODEL / MEM0_DEFAULT_EMBEDDER_MODEL
+      # — the old MEM0_LLM_MODEL / MEM0_EMBEDDING_MODEL names are NOT read by
+      # this image. Values must be model IDs LiteLLM actually exposes.
+      MEM0_DEFAULT_LLM_MODEL: ${HERMES_DEFAULT_MODEL:-llama3.2:latest}
+      MEM0_DEFAULT_EMBEDDER_MODEL: ${HERMES_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      # ── Auth (main.py raises RuntimeError at import time if neither is
+      # set) — AUTH_DISABLED is upstream's own documented "local dev only"
+      # escape hatch; used here as a placeholder since this service is not
+      # currently being brought up. Switch to a real JWT_SECRET (openssl
+      # rand -base64 48) + ADMIN_API_KEY before ever exposing this for real.
+      AUTH_DISABLED: ${MEM0_AUTH_DISABLED:-true}
+    depends_on:
+      # Qdrant dependency REMOVED — this image never talks to Qdrant.
+      postgres:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Agents
+      homepage.name: Mem0
+      homepage.icon: https://mem0.ai/favicon.ico
+      homepage.href: "http://localhost:${MEM0_PORT:-8888}"
+      homepage.description: Persistent long-term memory API — plug into any agent or n8n workflow
+    networks: [backend-net, database-net]
+    healthcheck:
+      # Real path is /api/health (main.py SKIPPED_REQUEST_LOG_PATHS), not
+      # /health.
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mem0_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

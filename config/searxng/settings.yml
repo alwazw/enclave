@@ -1,0 +1,135 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SearXNG Configuration — AEF2 Stack
+# Private meta-search engine. No tracking, no external telemetry.
+# All queries remain on-premise. Results feed Hermes web-researcher skill.
+# ─────────────────────────────────────────────────────────────────────────────
+
+use_default_settings: true
+
+general:
+  instance_name: "AEF2 Search"
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+  enable_metrics: false
+
+server:
+  secret_key: "${SEARXNG_SECRET_KEY}"
+  limiter: false
+  image_proxy: true
+  http_protocol_version: "1.1"
+
+ui:
+  static_use_hash: true
+  default_locale: "en"
+  query_in_title: true
+  infinite_scroll: true
+  center_alignment: false
+  default_theme: simple
+  theme_args:
+    simple_style: dark
+  results_on_new_tab: false
+  search_on_category_select: true
+  hotkeys: default
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  ban_time_on_fail: 5
+  max_ban_time_on_fail: 120
+  suspended_times:
+    SearxEngineAccessDeniedException: 86400
+    SearxEngineCaptcha: 86400
+    SearxEngineTooManyRequests: 3600
+    cf_SearxEngineCaptcha: 1296000
+    cf_SearxEngineAccessDeniedException: 86400
+    recaptcha_SearxEngineCaptcha: 604800
+  formats:
+    - html
+    - json
+
+engines:
+  - name: bing
+    engine: bing
+    shortcut: bi
+    disabled: false
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  - name: brave
+    engine: brave
+    shortcut: brave
+    disabled: false
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+
+  - name: arxiv
+    engine: arxiv
+    shortcut: arxiv
+    categories: science
+    disabled: false
+
+  - name: github
+    engine: github
+    shortcut: gh
+    categories: it
+    disabled: false
+
+  - name: stackoverflow
+    engine: stackexchange
+    shortcut: so
+    categories: it
+    disabled: false
+
+  - name: npm
+    engine: npm
+    shortcut: npm
+    categories: it
+    disabled: false
+
+  - name: pypi
+    engine: pypi
+    shortcut: pypi
+    categories: it
+    disabled: false
+
+  - name: dockerhub
+    engine: docker_hub
+    shortcut: dkh
+    categories: it
+    disabled: false
+
+  - name: openstreetmap
+    engine: openstreetmap
+    shortcut: osm
+    categories: map
+    disabled: false
+
+  - name: reddit
+    engine: reddit
+    shortcut: re
+    disabled: false
+
+  - name: hackernews
+    engine: hackernews
+    shortcut: hn
+    categories: news, it
+    disabled: false
+
+outgoing:
+  request_timeout: 6.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+redis:
+  url: "redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}/1"

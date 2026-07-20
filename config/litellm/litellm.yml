@@ -1,0 +1,243 @@
+# ════════════════════════════════════════════════════════════════════════
+#  AEF2 — LiteLLM Router Config  (canonical; config.yml is a symlink to this;
+#  mounted at /app/config.yaml)
+#
+#  STRATEGY (Board 2026-07-10): DEV runs on the free/available provider pools;
+#  Anthropic is DEFINED but DEFERRED (out of the dev fallback chain) so it incurs
+#  ZERO cost until we promote it for prod. Local Ollama is the always-on floor.
+#
+#  DEV CASCADE (active):
+#    main    : Gemini 2.5 Pro + DeepSeek Reasoner   → tier2 → openrouter → novita → nim → local
+#    utility : Gemini 2.5 Flash (JSON) + Qwen        → tier2 → openrouter → novita → nim → local
+#  PROD (promote when past dev — add morpheus-prod-* to the front of fallbacks):
+#    Anthropic Sonnet / Opus / Haiku
+#
+#  FALLBACK CORRECTNESS: multiple deployments per pool + usage-based routing +
+#  cooldown park a 429'd/failed deployment; retry_policy sets AuthenticationError
+#  retries = 0 so an EMPTY/BAD key in a pool cascades IMMEDIATELY to the next tier
+#  instead of stalling. An unset Anthropic key can never break dev because the
+#  prod-* models are not referenced in the fallbacks list.
+#
+#  Keys are read from gitignored .env (never hardcode).
+# ════════════════════════════════════════════════════════════════════════
+model_list:
+
+  # ─── MAIN REASONING (dev primary): Gemini 2.5 Pro + DeepSeek Reasoner ───
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: gemini/gemini-2.5-pro, api_key: "os.environ/GEMINI_API_KEY_1" }
+    rpm: 2
+    tpm: 32000
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: gemini/gemini-2.5-pro, api_key: "os.environ/GEMINI_API_KEY_2" }
+    rpm: 2
+    tpm: 32000
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: gemini/gemini-2.5-pro, api_key: "os.environ/GEMINI_API_KEY_3" }
+    rpm: 2
+    tpm: 32000
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: deepseek/deepseek-reasoner, api_key: "os.environ/DEEPSEEK_KEY_1" }
+    rpm: 3
+    tpm: 40000
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: deepseek/deepseek-reasoner, api_key: "os.environ/DEEPSEEK_KEY_2" }
+    rpm: 3
+    tpm: 40000
+
+  # ─── MAIN TIER 2: Gemini Flash (+ Qwen/Groq DISABLED, see #26) ───
+  - model_name: openai/morpheus-main-tier2
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1" }
+    rpm: 15
+    tpm: 1000000
+  - model_name: openai/morpheus-main-tier2
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_2" }
+    rpm: 15
+    tpm: 1000000
+  - model_name: openai/morpheus-main-tier2
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3" }
+    rpm: 15
+    tpm: 1000000
+  # #26: both deployments below are DISABLED, not just retry-tuned around.
+  # `GET /health` on the live proxy independently confirms both keys are
+  # genuinely, permanently wrong (not rate-limited/transient): dashscope ->
+  # "AuthenticationError: Incorrect API key provided"; groq ->
+  # "Invalid API Key". A retry count only gives one MORE chance at a
+  # same-tier sibling -- it doesn't stop the router from occasionally
+  # landing on one of these under load (Dispatch's re-audit reproduced the
+  # raw error leaking to a client at request 27/30 with a real paced test).
+  # Re-enable only alongside a real, working key for either provider.
+  # - model_name: openai/morpheus-main-tier2
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
+  # - model_name: openai/morpheus-main-tier2
+  #   litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
+  #   rpm: 30
+  #   tpm: 60000
+
+  # ─── UTILITY (JSON/tool-calling): Gemini Flash + Qwen; + typo alias ───
+  - model_name: openai/morpheus-utility-model
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1", response_format: { type: "json_object" } }
+    rpm: 15
+    tpm: 1000000
+  - model_name: openai/morpheus-utility-model
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_2", response_format: { type: "json_object" } }
+    rpm: 15
+    tpm: 1000000
+  - model_name: openai/morpheus-utility-model
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_3", response_format: { type: "json_object" } }
+    rpm: 15
+    tpm: 1000000
+  # #26: DISABLED, same confirmed-dead key as morpheus-main-tier2 above.
+  # - model_name: openai/morpheus-utility-model
+  #   litellm_params: { model: dashscope/qwen-max, api_key: "os.environ/ALIBABA_MODELSTUDIO_KEY_1" }
+  #   rpm: 20
+  #   tpm: 60000
+  # Backward-compat: historic 'utitlity' typo alias → same as utility
+  - model_name: openai/morpheus-utitlity-model
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_1" }
+    rpm: 15
+    tpm: 1000000
+  - model_name: openai/morpheus-utitlity-model
+    litellm_params: { model: gemini/gemini-2.5-flash, api_key: "os.environ/GEMINI_API_KEY_2" }
+    rpm: 15
+    tpm: 1000000
+
+  # ─── UTILITY TIER 2: DeepSeek Chat + Groq ───
+  - model_name: openai/morpheus-utility-tier2
+    litellm_params: { model: deepseek/deepseek-chat, api_key: "os.environ/DEEPSEEK_KEY_1" }
+    rpm: 5
+    tpm: 60000
+  - model_name: openai/morpheus-utility-tier2
+    litellm_params: { model: deepseek/deepseek-chat, api_key: "os.environ/DEEPSEEK_KEY_2" }
+    rpm: 5
+    tpm: 60000
+  # #26: DISABLED, same confirmed-dead GROQ_API_KEY_1 as morpheus-main-tier2 above.
+  # - model_name: openai/morpheus-utility-tier2
+  #   litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: "os.environ/GROQ_API_KEY_1" }
+  #   rpm: 30
+  #   tpm: 60000
+
+  # ─── TIER 3: OpenRouter free pool (3 keys) ───
+  # Slug fix 2026-07-10 (T-0028): old `google/gemini-2.5-flash:free` 404s
+  # ("unavailable for free"). Re-slugged to LIVE, currently-serving :free models
+  # verified directly against OpenRouter chat/completions. Distinct model per key
+  # for role/size diversity while keeping the KEY_1/2/3 rotation. The Venice/
+  # OpenInference-hosted free flagships (llama-3.3-70b/gpt-oss/qwen3 :free) are
+  # 429-throttled on the shared free host; NVIDIA-hosted nemotron :free serve reliably.
+  - model_name: openai/morpheus-openrouter-free
+    litellm_params: { model: openrouter/nvidia/nemotron-3-super-120b-a12b:free, api_key: "os.environ/OPENROUTER_KEY_1" }
+    rpm: 10
+    tpm: 30000
+  - model_name: openai/morpheus-openrouter-free
+    litellm_params: { model: openrouter/nvidia/nemotron-3-nano-30b-a3b:free, api_key: "os.environ/OPENROUTER_KEY_2" }
+    rpm: 10
+    tpm: 30000
+  - model_name: openai/morpheus-openrouter-free
+    litellm_params: { model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free, api_key: "os.environ/OPENROUTER_KEY_3" }
+    rpm: 10
+    tpm: 30000
+
+  # ─── TIER 4: Novita pool ───
+  - model_name: openai/morpheus-novita
+    litellm_params: { model: novita/meta-llama/llama-3.3-70b-instruct, api_key: "os.environ/NOVITA_KEY_1" }
+    rpm: 20
+    tpm: 60000
+
+  # ─── TIER 5: NVIDIA NIM (GPU-cloud) ───
+  - model_name: openai/morpheus-nim
+    litellm_params: { model: nvidia_nim/nvidia/llama-3.1-nemotron-70b-instruct, api_key: "os.environ/NVIDIA_NIM_API_KEY" }
+    rpm: 40
+    tpm: 120000
+  - model_name: openai/morpheus-nim
+    litellm_params: { model: nvidia_nim/meta/llama-3.3-70b-instruct, api_key: "os.environ/NVIDIA_NIM_API_KEY" }
+    rpm: 40
+    tpm: 120000
+
+  # ─── TIER 6: LOCAL SILICON FALLBACK (offline floor; api_base FIXED ai-ollama→ollama) ───
+  - model_name: openai/morpheus-local-fallback
+    litellm_params: { model: ollama/dolphin3, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+  - model_name: openai/morpheus-local-fallback
+    litellm_params: { model: ollama/deepseek-r1:8b, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+
+  # ─── EMBEDDING (local, private) + typo alias ───
+  # #32: only entries in this whole file with no explicit caps — added.
+  - model_name: openai/morpheus-embedding-model
+    litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
+  - model_name: openai/morpheus-embeding-model
+    litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
+
+  # ════════════════════════════════════════════════════════════════════
+  #  PROD-DEFERRED — Anthropic. DEFINED but NOT wired into the dev fallbacks
+  #  below → ZERO Anthropic spend in dev. To go to prod, add these to the FRONT
+  #  of the corresponding fallbacks list (e.g. main → [prod-main, ...]).
+  # ════════════════════════════════════════════════════════════════════
+  - model_name: openai/morpheus-prod-main
+    litellm_params: { model: anthropic/claude-sonnet-5, api_key: "os.environ/ANTHROPIC_API_KEY" }
+    rpm: 50
+    tpm: 200000
+  - model_name: openai/morpheus-prod-heavy
+    litellm_params: { model: anthropic/claude-opus-4-8, api_key: "os.environ/ANTHROPIC_API_KEY" }
+    rpm: 20
+    tpm: 120000
+  - model_name: openai/morpheus-prod-utility
+    litellm_params: { model: anthropic/claude-haiku-4-5, api_key: "os.environ/ANTHROPIC_API_KEY" }
+    rpm: 100
+    tpm: 300000
+
+# ════════════════════════════════════════════════════════════════════════
+#  CASCADE + RATE-LIMIT GUARD
+# ════════════════════════════════════════════════════════════════════════
+router_settings:
+  routing_strategy: usage-based-routing
+  num_retries: 5
+  cooldown_time: 60
+  allowed_fails: 1
+  optional_pre_call_checks:
+    - enforce_model_rate_limits
+  # FIX (2026-07-16, #26): was AuthenticationErrorRetries: 0. Traced litellm's
+  # actual router source (router.py): a retry count of 0 means the router
+  # never attempts a SIBLING deployment in the same pool on an auth error —
+  # it fails that request immediately and falls straight to the next
+  # `fallbacks` TIER, skipping a healthy same-tier deployment entirely
+  # (e.g. DeepSeek dead + auth-error on the main pool would skip a perfectly
+  # healthy Gemini sibling and drop straight to tier2). This is the literal
+  # mechanism behind the 2026-07 "entire main-model pool down" incident.
+  # allowed_fails=1 + cooldown_time=60 below already park a repeatedly-dead
+  # deployment, so a retry count of 1 here won't loop on the same dead
+  # deployment — it gives the FIRST unlucky request one real chance at the
+  # healthy sibling before falling through tiers.
+  retry_policy:
+    AuthenticationErrorRetries: 1
+    RateLimitErrorRetries: 2
+    TimeoutErrorRetries: 2
+    InternalServerErrorRetries: 2
+  # #32 incident (2026-07-16 05:18): main-model's entire pool was down at once
+  # (Gemini-Pro at 0 free-tier quota on all 3 keys, DeepSeek both keys out of
+  # balance) — total failure, Chairman: "make sure the last fallback in all
+  # pools is openrouter free:free no matter what." openrouter-free moved from
+  # 2nd to LAST in every chain: local-fallback currently has zero Ollama
+  # models pulled on this host, so if a request ever reaches that far,
+  # openrouter-free must be strictly after it as the true final safety net,
+  # not before.
+  fallbacks:
+    - {"openai/morpheus-main-model":    ["openai/morpheus-main-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
+    - {"openai/morpheus-utility-model": ["openai/morpheus-utility-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
+    - {"openai/morpheus-utitlity-model":["openai/morpheus-utility-tier2", "openai/morpheus-novita", "openai/morpheus-nim", "openai/morpheus-local-fallback", "openai/morpheus-openrouter-free"]}
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  # Observability: emit a Langfuse trace for every call (§ launch-gate tracing).
+  # Active only when LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST are present in the env;
+  # absent keys => callback is a harmless no-op (no hard dependency).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]

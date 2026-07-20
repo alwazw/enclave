@@ -1,0 +1,36 @@
+# Pre-commit hooks — Enclave born-clean secret hygiene.
+#
+# Install once:   pip install pre-commit && pre-commit install
+# Run manually:   pre-commit run --all-files
+#
+# Two gates:
+#   1. gitleaks       — blocks any commit that introduces a detectable secret.
+#   2. block-real-env — refuses to stage any .env file except *.example / *.template.
+#
+# The stack's real secrets live only in .env (gitignored). These hooks are the
+# belt-and-suspenders that stop a stray `git add` from ever committing them.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: gitleaks (scan staged changes for secrets)
+        args: ["protect", "--staged", "--redact", "--config", ".gitleaks.toml"]
+
+  - repo: local
+    hooks:
+      - id: block-real-env-files
+        name: block staging real .env files (allow *.example / *.template)
+        entry: scripts/block-real-env.sh
+        language: script
+        # Match any .env or .env.* path; the script whitelists example/template.
+        files: '(^|/)\.env($|\.)'
+        pass_filenames: true
+
+      - id: forbid-add-all
+        name: reminder — stage explicit paths, never git add -A/./-a
+        entry: 'bash -c ''echo "Reminder: stage explicit paths only. See README for the safe-add command." >&2; exit 0'''
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

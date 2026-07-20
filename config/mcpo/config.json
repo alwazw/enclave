@@ -1,0 +1,39 @@
+{
+  "//": "CORE MCP servers, reached over STATEFUL Streamable-HTTP at :8000/mcp (NOT legacy SSE). mcpo reads the `type` key (not `transport`); `type: streamable-http` -> mcpo's streamablehttp_client. The stdio `command`/`args` are kept for documentation of the underlying server but are unused when `url`+`type` are present. See compose/ai-ml/mcp-servers/mcp-servers.yml for the root-cause (single-Protocol SSE crash) this transport avoids.",
+  "//scope": "Only the 4 core-profile servers are listed. The tools-profile servers (fetch/surrealdb/docker) are intentionally OMITTED: mcpo connects to every server in this file at startup, and an unreachable server's Streamable-HTTP cleanup raises an anyio cancel-scope error that CASCADE-CANCELS sibling connections (it was killing github+postgres). surrealdb/docker are also 404 on npm (dead packages). Re-add a server here only once it is actually deployed and validated.",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/agent-workspace"],
+      "type": "streamable-http",
+      "url": "http://mcp-filesystem:8000/mcp",
+      "description": "Read/write files in the agent workspace"
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "type": "streamable-http",
+      "url": "http://mcp-memory:8000/mcp",
+      "description": "Persistent key-value entity memory across sessions"
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "type": "streamable-http",
+      "url": "http://mcp-github:8000/mcp",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "Read repos, issues, PRs, and files from GitHub"
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres",
+        "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}"
+      ],
+      "type": "streamable-http",
+      "url": "http://mcp-postgres:8000/mcp",
+      "description": "SQL queries against all Postgres databases"
+    }
+  }
+}
