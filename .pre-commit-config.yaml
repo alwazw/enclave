@@ -30,7 +30,7 @@ repos:
 
       - id: forbid-add-all
         name: reminder — stage explicit paths, never git add -A/./-a
-        entry: bash -c 'echo "Reminder: stage explicit paths only. See README for the safe-add command." >&2; exit 0'
+        entry: 'bash -c ''echo "Reminder: stage explicit paths only. See README for the safe-add command." >&2; exit 0'''
         language: system
         pass_filenames: false
         stages: [pre-commit]
