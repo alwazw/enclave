@@ -334,3 +334,32 @@ present on the repository's default branch — this is a platform constraint, no
 option on this repo's side. The workflow file and its script are verified correct and live on
 `launch/hardening` (script logic run for real against live registries; YAML validated; commit
 pushed). Moving to the next objective now rather than stalling here.
+
+## Chairman's 5-objective list (2026-07-20) — status on completion
+
+1. **#16** — NEEDS-DISPATCH written above; code-side work verified, scheduled-trigger proof
+   blocked by the default-branch platform constraint. Not re-raising it further.
+2. **AIR-GAP MODE** — PASS, re-verified fresh this round (`AIRGAP-MODE-refresh` in
+   `validation_run`): zero cloud keys in an ephemeral litellm container, real completion via
+   local Ollama `deepseek-r1:8b`, cascade restored with no regression.
+3. **Open WebUI <-> Hermes round-trip** — PASS (`OPENWEBUI-HERMES-roundtrip` in
+   `validation_run`): added real model-forwarding to `agents/hermes/openai-shim.py` (forwards
+   the request's `model` to hermes's `-m` flag), fixed a single-file bind-mount inode-pinning
+   issue that was silently serving stale code (force-recreated `hermes`), then proved a real
+   `curl` round-trip from inside `open_webui` through the shim to the live Hermes CLI brain —
+   HTTP 200, exact echo, via `openai/morpheus-utility-model` (routed around the pre-existing
+   #32 default-tier rate-limit). Committed + gitleaks-clean + pushed to `launch/hardening`
+   (`61066de`).
+4. **Media assets** — PASS (`MEDIA-ASSETS-confirm` in `validation_run`): all 6 named assets
+   (`DEMO-SHOT-SCRIPT.md`, `SOCIAL-POST-DRAFTS.md` [LinkedIn + Show HN both present],
+   `MEDIA-PRODUCTION-INSTRUCTIONS.md`, `COMPARISON.md`, `enclave-architecture.svg` [valid XML],
+   `GOVERNANCE.md`) exist on `launch/hardening` with real, non-stub content. Nothing to fix.
+5. **#27 Telegram** — reconfirmed, not re-investigated from scratch: fresh
+   `getWebhookInfo` check this round shows the same state as Dispatch's own ruling below
+   (`pending_update_count: 0`, no webhook, consistent with an active external drainer on the
+   Chairman's other VM — out of this charter's scope to touch). Dispatch already RULED this
+   EXCEPTED for the round (see below); per that ruling and the Chairman's own "documented-
+   parked" framing, no further local action is taken. Stays BLOCKED/NEEDS-CHAIRMAN as Dispatch
+   tagged it.
+
+REMEDIATION COMPLETE — task #8 done, awaiting rotation+merge
