@@ -6,7 +6,7 @@ SurrealDB serves as the durable long-term memory and knowledge graph layer for t
 
 ## Connection Details
 - **Endpoint:** `http://surrealdb:8000/sql`
-- **Auth:** `Authorization: Basic <base64(SURREALDB_USER:SURREALDB_PASSWORD)>`
+- **Auth:** `Authorization: Basic <base64(SURREALDB_USER:SURREALDB_PASS)>`
 - **Namespace:** `aef2`
 - **Database:** `memory` (primary), `projects` (project-scoped data), `logs` (audit trail)
 
