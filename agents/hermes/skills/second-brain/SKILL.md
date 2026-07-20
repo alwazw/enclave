@@ -7,43 +7,56 @@ Manages the two-tier second brain: **Trilium** for hierarchical evergreen notes 
 ## Service Endpoints
 | Service | URL | Purpose |
 |---|---|---|
-| TriliumNext API | `http://trilium:8080/api` | CRUD notes, attributes, tree structure |
+| TriliumNext ETAPI | `http://trilium:8080/etapi` | CRUD notes, attributes, tree structure. `/api/setup/*` is a separate, unauthenticated first-run wizard path — not used for regular note CRUD. |
 | AFFiNE | `http://affine:3010` | Docs and whiteboards (browser interaction) |
+
+## Authentication (Trilium)
+There is no `TRILIUM_API_TOKEN` env var — the only stored credential is `TRILIUM_PASSWORD` (`.env.example`). Obtain a session token per use via:
+```http
+POST http://trilium:8080/etapi/auth/login
+Content-Type: application/json
+
+{"password": "<TRILIUM_PASSWORD>", "tokenName": "hermes-second-brain"}
+```
+Response includes `authToken` — use it as `Authorization: <authToken>` (ETAPI's own scheme, not `Bearer`/`Token`) on subsequent calls.
 
 ## Core Operations
 
 ### Capture a note (Trilium)
 ```http
-POST http://trilium:8080/api/notes/<parentNoteId>/children
-Authorization: Token <TRILIUM_API_TOKEN>
+POST http://trilium:8080/etapi/create-note
+Authorization: <authToken>
 Content-Type: application/json
 
 {
+  "parentNoteId": "<parentNoteId>",
   "title": "<title>",
   "type": "text",
-  "content": "<html_or_markdown_content>",
-  "attributes": [
-    {"type": "label", "name": "source", "value": "<origin>"},
-    {"type": "label", "name": "date", "value": "<YYYY-MM-DD>"},
-    {"type": "label", "name": "tag", "value": "<topic>"}
-  ]
+  "content": "<html_or_markdown_content>"
 }
+```
+Add labels in a follow-up call:
+```http
+POST http://trilium:8080/etapi/attributes
+Authorization: <authToken>
+{"noteId": "<noteId>", "type": "label", "name": "source", "value": "<origin>"}
 ```
 
 ### Search notes (Trilium)
 ```http
-GET http://trilium:8080/api/notes?search=<query>
-Authorization: Token <TRILIUM_API_TOKEN>
+GET http://trilium:8080/etapi/notes?search=<query>
+Authorization: <authToken>
 ```
 
 ### Link two notes (Trilium relation)
 ```http
-POST http://trilium:8080/api/notes/<sourceId>/attributes
-{"type": "relation", "name": "references", "value": "<targetNoteId>"}
+POST http://trilium:8080/etapi/attributes
+Authorization: <authToken>
+{"noteId": "<sourceId>", "type": "relation", "name": "references", "value": "<targetNoteId>"}
 ```
 
 ### Auto-tag procedure
-1. Retrieve note content via `GET /api/notes/<id>/content`
+1. Retrieve note content via `GET /etapi/notes/<id>/content`
 2. Ask LiteLLM to extract 3–5 semantic tags
 3. Add each as a label attribute via PATCH
 

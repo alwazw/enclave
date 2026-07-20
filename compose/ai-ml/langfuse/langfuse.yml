@@ -3,7 +3,7 @@ services:
     image: langfuse/langfuse:2
     container_name: langfuse
     restart: unless-stopped
-    profiles: [core]
+    profiles: [observability]
     ports:
       - "${LANGFUSE_PORT:-3300}:3000"
     volumes:

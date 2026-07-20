@@ -163,7 +163,7 @@ The Homepage dashboard (running on port `3030`) by default has strict host valid
 
 **Symptom:** Accessing Homepage via LAN IP results in `Host validation failed` errors in the container logs and a `400 Bad Request` in the browser.
 
-**Fix:** The `HOMEPAGE_ALLOWED_HOSTS` environment variable has been explicitly set in `compose/productivity/homepage/homepage.yml` to include both `localhost:3030` and the typical LAN IP address, allowing flexible access. If you use a different LAN IP or hostname, you may need to adjust this variable in your `.env` file and restart Homepage.
+**Fix:** The `HOMEPAGE_ALLOWED_HOSTS` environment variable is explicitly set in `compose/productivity/homepage/homepage.yml` to `${HOST_IP}:3030,localhost:3000` — both the LAN-IP access path (on the real external port 3030) and a localhost fallback are allowed. If you use a different LAN IP or hostname, you may need to adjust this variable in your `.env` file and restart Homepage.
 
 ### SearXNG Port Conflict
 
@@ -195,11 +195,12 @@ The Hermes agent, designed as a central orchestrator, uses a gateway mode that d
 
 ### MCP Servers Availability
 
-Some MCP server npm packages (`@modelcontextprotocol/server-docker`, `@modelcontextprotocol/server-fetch`, `mcp-server-surrealdb`) were found to be unavailable on npm, causing their respective containers to fail startup.
+Three MCP servers aren't started by default, for different reasons:
 
-**Symptom:** `mcp-servers` containers for `docker`, `fetch`, or `surrealdb` fail with `npm ERR! 404 Not Found` or similar package installation errors during build or startup.
+- **`fetch`** (`@modelcontextprotocol/server-fetch`) is real and working, just not core-critical — it's in the `tools` profile. Enable it with `--profile tools`.
+- **`docker`** and **`surrealdb`** are `profiles: [disabled]` and don't start under any profile flag. `docker`'s MCP package needs a `docker.sock` mount that hasn't been scoped down safely yet. `surrealdb`'s npm package (`surrealdb-mcp-server`) hard-rejects this stack's running SurrealDB version (it requires `>= 1.4.2 < 3.0.0`; this stack runs a newer 3.x). Both are left disabled rather than silently broken — see `compose/ai-ml/mcp-servers/mcp-servers.yml` for the exact rejection details.
 
-**Fix:** These problematic MCP server definitions have been moved from the `core` profile to the `tools` profile within `compose/ai-ml/mcp-servers/mcp-servers.yml`. This allows the core services to start successfully, while these particular servers can be enabled if their packages become available or custom builds are provided.
+Only 4 MCP servers are wired into Hermes's own `hermes-config.yaml` today: `filesystem`, `memory`, `github`, `postgres` (all `core`). `fetch`, `surrealdb`, and `docker` exist as containers but aren't registered as Hermes tools even when running.
 
 ---
 
@@ -278,10 +279,10 @@ docker compose --profile core --profile automation --profile knowledge \
 
 | Profile | Services Included | RAM Estimate |
 |---|---|---|
-| `core` | PostgreSQL, Redis, SurrealDB, Qdrant, Ollama, LiteLLM, Hermes, Open WebUI, MCPO, 7 MCP Servers, SearXNG, Homepage | ~6 GB |
+| `core` | PostgreSQL, Redis, SurrealDB, Qdrant, Ollama, LiteLLM, Hermes, Open WebUI, MCPO, Registrar, UX Validate, 4 core MCP Servers, SearXNG, Homepage | ~6 GB |
 | `automation` | n8n, Flowise | +1 GB |
 | `knowledge` | AFFiNE (+ migration), TriliumNext, AnythingLLM, Docling | +2 GB |
-| `memory` | Mem0, Open Interpreter | +1 GB |
+| `memory` | Mem0 | +1 GB |
 | `extras` | ChromaDB, Weaviate | +1 GB |
 | `observability` | Langfuse, Dozzle | +1 GB |
 | `tools` | Portainer, CloudBeaver | +300 MB |
@@ -296,10 +297,10 @@ docker compose --profile core --profile automation --profile knowledge \
 
 | Service | Port | Profile | Description |
 |---|---|---|---|
-| **SurrealDB** | 8000 | `core` | Multi-model DB: SQL, document, graph, KV, time-series, vector. Central store for Hermes entity memory and application data. |
+| **SurrealDB** | 8000 | `core` | Multi-model DB: SQL, document, graph, KV, time-series, vector. Provisioned for the entity-graph use case (`surreal-memory` skill) — not currently Hermes's own memory (see Memory Architecture). |
 | **PostgreSQL** | 5432 | `core` | Relational backbone for n8n, AFFiNE, Flowise, Langfuse, Mem0, LiteLLM. Auto-creates 6 databases on first boot. |
 | **Redis** | 6379 | `core` | Cache layer for SearXNG, LiteLLM rate limiting, session storage. |
-| **Qdrant** | 6333, 6334 | `core` | Primary vector store. Used by Hermes memory, Mem0, AnythingLLM, and RAG pipelines. HTTP on 6333, gRPC on 6334. |
+| **Qdrant** | 6333, 6334 | `core` | Primary vector store. Used by Mem0, AnythingLLM, and RAG pipelines — not Hermes's own memory (see Memory Architecture). HTTP on 6333, gRPC on 6334. |
 | **ChromaDB** | 8200 | `extras` | Lightweight vector store for dev/prototyping. Ephemeral experiments. |
 | **Weaviate** | 8280 | `extras` | Hybrid vector + keyword (BM25) search with Ollama auto-vectorization. |
 
@@ -309,14 +310,14 @@ docker compose --profile core --profile automation --profile knowledge \
 |---|---|---|---|
 | **Ollama** | 11434 | `core` | Local LLM runtime. Serves all models. Never called directly — always via LiteLLM. |
 | **LiteLLM Proxy** | 4000 | `core` | Unified OpenAI-compatible API gateway. Routes to Ollama models with semantic aliases, fallback chains, and Langfuse observability callbacks. |
-| **Hermes Agent** | 8642 | `core` | Central AI agent. OpenAI-compatible API. Connects to all MCP servers, has Qdrant memory, SurrealDB graph, 7 engineered skills. |
+| **Hermes Agent** | 8642 | `core` | Central AI agent. OpenAI-compatible API. Connects to 4 core MCP servers, local SQLite (`holographic`) persistent memory, 12 engineered skills. |
 | **Open WebUI** | 3000 | `core` | Chat interface. Connects to Hermes as primary backend. Supports RAG, image gen, voice, and tool use. |
 | **MCPO Bridge** | 8080 | `core` | Translates MCP protocol → OpenAI-compatible tool spec. Exposes all MCP servers as standard tool endpoints. |
-| **MCP Servers** | 3701–3707 | `core` | 7 specialized servers: filesystem (3701), memory (3702), fetch (3703), github (3704), postgres (3705), surrealdb (3706), docker (3707). |
+| **MCP Servers** | 3701–3705 | `core`/`tools`/`disabled` | filesystem (3701), memory (3702), github (3704), postgres (3705) are `core` and Hermes-registered. fetch (3703) is `tools` (working, opt-in). surrealdb/docker exist but are `disabled` (unmet package/mount prerequisites) — see Troubleshooting. |
 | **n8n** | 5678 | `automation` | Visual workflow automation. Pre-connected to Hermes via HTTP node and webhook triggers. |
 | **Flowise** | 3100 | `automation` | No-code LLM pipeline builder. Uses LiteLLM as model provider. |
 | **Mem0** | 8888 | `memory` | Long-term memory layer with user/session/agent scoping. Backed by Qdrant + PostgreSQL. |
-| **Open Interpreter** | 8143 | `memory` | Natural language code execution engine. Routes through LiteLLM. Accessible to Hermes via skill. |
+| **Open Interpreter** | 8143 | `disabled` | Natural language code execution engine — the upstream `openinterpreter/open-interpreter` image doesn't exist on Docker Hub, so this service never starts under any profile. Its Hermes skill (`code-executor`) is currently non-functional as a result. |
 | **AnythingLLM** | 3200 | `knowledge` | Multi-user RAG workspace. Document ingestion, embedding, and chat with sources. |
 | **Docling** | 5001 | `knowledge` | IBM's document intelligence service. PDF, DOCX, images → structured markdown with OCR. Feeds the RAG pipeline. |
 | **SearXNG** | 8081 | `core` | Private metasearch engine. No telemetry, 14 engines, Redis-cached. Used by Hermes web-researcher skill. |
@@ -328,6 +329,13 @@ docker compose --profile core --profile automation --profile knowledge \
 |---|---|---|---|
 | **AFFiNE** | 3010 | `knowledge` | Notion + Miro replacement. Block editor, whiteboards, databases. Self-hosted, offline-capable. |
 | **TriliumNext** | 8190 | `knowledge` | Hierarchical note-taking with graph view and REST API. Hermes second-brain skill reads/writes via API. |
+
+### Governance
+
+| Service | Port | Profile | Description |
+|---|---|---|---|
+| **Registrar** | 8090 | `core` | The evidence gate. File-based, git-audited kanban board — `POST /tasks/{id}/move {"status":"done"}` returns HTTP 409 unless real evidence is recorded first. `ux`-context tasks additionally require a real screenshot artifact on disk. See [registrar/README.md](registrar/README.md). |
+| **UX Validate** | 8091 | `core` | Playwright experience gate. Renders a real page in desktop + mobile viewports, writes screenshots into the Registrar's shared board volume, and auto-records them as evidence — the mechanism that makes `ux`-context evidence real rather than self-reported. |
 
 ### Dev Tools & Dashboards
 
@@ -350,31 +358,36 @@ Hermes is the intelligent core of this stack. It is not a chatbot — it is an *
 User Message
      │
      ▼
-┌──────────────────────────────────────────────────────┐
-│                  HERMES AGENT :8642                  │
-│                                                      │
-│  1. Intent Classification (system prompt rules)      │
-│  2. Skill Dispatch (matches trigger keywords)        │
-│  3. Tool Execution (MCP servers via cli-config.yaml) │
-│  4. Memory Read/Write (Qdrant vector + SurrealDB)    │
-│  5. LLM Call (via LiteLLM :4000 with model alias)   │
-│  6. Response + Langfuse trace logged                 │
-└──────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                   HERMES AGENT :8642                   │
+│                                                        │
+│  1. Intent Classification (system prompt rules)        │
+│  2. Skill Dispatch (matches trigger keywords)          │
+│  3. Tool Execution (registered MCP servers)            │
+│  4. Memory Read/Write (local SQLite holographic store) │
+│  5. LLM Call (via LiteLLM :4000 with model alias)      │
+│  6. Response + Langfuse trace logged                   │
+└────────────────────────────────────────────────────────┘
 ```
 
 ### MCP Servers
 
-Hermes connects natively to 7 MCP servers via `agents/hermes/cli-config.yaml`:
+Hermes connects natively to 4 MCP servers, registered in `agents/hermes/hermes-config.yaml`:
 
 | Server | Port | Capabilities |
 |---|---|---|
-| `mcp-filesystem` | 3701 | Read, write, search, list files in `./data/` |
+| `mcp-filesystem` | 3701 | Read, write, search, list files in `/workspace` |
 | `mcp-memory` | 3702 | Key-value entity memory with semantic search |
-| `mcp-fetch` | 3703 | HTTP fetch with JS rendering, content extraction |
 | `mcp-github` | 3704 | Repo management, issues, PRs, code search |
 | `mcp-postgres` | 3705 | PostgreSQL query execution and schema inspection |
-| `mcp-surrealdb` | 3706 | SurrealQL execution, graph traversal, schema CRUD |
-| `mcp-docker` | 3707 | Container lifecycle, logs, inspect, stack health |
+
+Three more MCP server containers exist in `compose/ai-ml/mcp-servers/mcp-servers.yml` but are **not** registered as Hermes tools even when running:
+
+| Server | Port | Profile | Status |
+|---|---|---|---|
+| `mcp-fetch` | 3703 | `tools` (not started by default) | Working — real HTTP fetch, not core-critical |
+| `mcp-surrealdb` | — | `disabled` | Its npm package hard-rejects this stack's SurrealDB version |
+| `mcp-docker` | — | `disabled` | Needs a `docker.sock` mount not yet scoped down safely |
 
 ### Skills
 
@@ -383,12 +396,17 @@ Skills are loaded from `agents/hermes/skills/` and follow the [SKILL.md format](
 | Skill | Trigger Keywords | Description |
 |---|---|---|
 | `rag-ingest` | *ingest, index, upload, add document* | Docling → chunk → embed → Qdrant pipeline |
-| `second-brain` | *note, trilium, affine, remember, journal* | Read/write TriliumNext + AFFiNE via REST API with PARA tagging |
-| `code-executor` | *run, execute, script, code* | Routes to Open Interpreter with sandboxing and safety gates |
-| `web-researcher` | *search, research, find online, look up* | SearXNG → fetch → synthesize → cite with source attribution |
-| `docker-ops` | *container, docker, stack, service, logs* | Container management and full stack health sweep |
-| `workflow-builder` | *workflow, automation, n8n, flowise, trigger* | n8n + Flowise API CRUD with template library |
-| `surreal-memory` | *remember, entity, graph, who is, relationship* | SurrealQL entity graph: people, projects, events, relationships |
+| `second-brain` | *note, trilium, affine, remember, journal* | Read/write TriliumNext via ETAPI with PARA tagging |
+| `code-executor` | *run, execute, script, code* | Routes to Open Interpreter — **currently non-functional**, the upstream image doesn't exist on Docker Hub (see Service Index) |
+| `web-researcher` | *search, research, find online, look up* | Hermes's built-in SearXNG plugin → synthesize → cite with source attribution |
+| `docker-ops` | *container, docker, stack, service, logs* | Container management via the `filesystem`/`postgres` MCP tools and shell; the `docker` MCP server itself is disabled |
+| `workflow-builder` | *workflow, automation, n8n, flowise, trigger* | n8n + Flowise workflow guidance (API-key auth requires manual per-service setup — no auto-generated key today) |
+| `surreal-memory` | *remember, entity, graph, who is, relationship* | SurrealQL entity graph: people, projects, events, relationships (no live MCP path yet — `mcp-surrealdb` is disabled) |
+| `board-review` | *status rollup, board review, state of the companies* | Read-only cross-company status rollup from the Registrar (hub scope) |
+| `incorporate-project` | *incorporate, start a new project/company* | Registers a new company on the Registrar + creates its dispatch board |
+| `list-projects` | *what projects/companies exist* | Read-only list of companies known to the Registrar |
+| `pause-terminate` | *pause, freeze, halt, terminate, wind down* | Reversibly halts a company's open work on the Registrar (Chairman-confirmed only) |
+| `route-to-ceo` | *have <project> build X, dispatch this task* | Creates a task under a company's Registrar scope and assigns it to that company's CEO |
 
 ### Telegram Access
 
@@ -424,12 +442,9 @@ EOF
 
 ### Memory Architecture
 
-Hermes uses a **dual-memory system**:
+Hermes's own persistent memory is **not** Qdrant or SurrealDB — `hermes-agent` v0.16's external-memory plugin set (`honcho`, `mem0`, `openviking`, `hindsight`, `holographic`, `retaindb`, `byterover`, `supermemory`) doesn't include either, and the compose `QDRANT_URL`/`SURREALDB_URL` env vars passed to Hermes are currently inert for it (see `agents/hermes/hermes-config.yaml`'s own comment). Hermes runs `provider: holographic`: a local SQLite fact store with FTS5 search and HRR compositional retrieval at `$HERMES_HOME/memory_store.db` (on the persistent `hermes_data` volume — survives restarts), plus its always-on built-in `MEMORY.md`/`USER.md`. Hermes can also call the separate `mcp-memory` MCP tool (port 3702) for key-value entity storage.
 
-- **Qdrant (vector)** — semantic similarity search over conversation history, documents, and entities
-- **SurrealDB (graph)** — structured entity relationships: people, projects, events, decisions, and their connections
-
-Both stores are written automatically during conversations. Use the `surreal-memory` skill to explicitly query or update graph relationships.
+Qdrant and SurrealDB are real and running in this stack, just not as Hermes's memory: **Qdrant** backs Mem0, AnythingLLM, and the RAG ingestion pipeline; **SurrealDB** is provisioned (namespace/database, credentials) for the entity-graph use case the `surreal-memory` skill describes, but has no live MCP path into Hermes today (its MCP server is disabled — see Troubleshooting). Until a Qdrant/SurrealDB-backed memory provider exists upstream for Hermes, or a live SurrealDB MCP path is wired, treat the `surreal-memory` skill's queries as correct-but-manual (run directly against `http://surrealdb:8000/sql`), not something Hermes writes to automatically during conversations.
 
 ---
 
@@ -469,8 +484,8 @@ SURREALDB_HOST=surrealdb
 SURREALDB_PORT=8000
 SURREALDB_USER=root
 SURREALDB_PASS=<auto-generated>
-SURREALDB_NS=aef2
-SURREALDB_DB=main
+SURREALDB_NS=aef
+SURREALDB_DB=hermes
 
 # Redis
 REDIS_HOST=redis
@@ -550,6 +565,8 @@ OPEN_WEBUI_SECRET_KEY=<auto-generated>
 MEM0_API_KEY=<auto-generated>
 AFFINE_ADMIN_PASSWORD=<auto-generated>
 ```
+
+`AFFINE_ADMIN_PASSWORD` (and `AFFINE_ADMIN_EMAIL`) are generated like the rest, but currently have **no real bootstrap effect** — AFFiNE has no unauthenticated admin-creation API and no SMTP relay is wired for magic-link sign-up, so nothing in this stack actually consumes these values yet. They're kept as documented intent for a future fix, not a working credential today (see `.env.example`'s own note above these vars).
 
 </details>
 
@@ -824,20 +841,9 @@ Do not use `localhost` — n8n cannot resolve it to Hermes inside Docker.
 </details>
 
 <details>
-<summary>🔴 SurrealDB MCP server returning auth errors</summary>
+<summary>🔴 mcp-surrealdb container doesn't start / isn't in `docker ps`</summary>
 
-The MCP SurrealDB server uses credentials from `cli-config.yaml` which are populated from environment variables. Verify:
-
-```bash
-# Check env vars are loaded in the mcp-surrealdb container
-docker exec mcp_surrealdb env | grep SURREAL
-```
-
-If variables are missing, ensure `.env` has `SURREALDB_USER`, `SURREALDB_PASS`, `SURREALDB_NS`, `SURREALDB_DB` set, then:
-
-```bash
-docker compose up -d --force-recreate mcp-surrealdb
-```
+This is expected today, not a misconfiguration: `mcp-surrealdb` is `profiles: [disabled]` in `compose/ai-ml/mcp-servers/mcp-servers.yml` and won't start under any `--profile` flag. Its npm package (`surrealdb-mcp-server`) hard-rejects this stack's running SurrealDB version — it requires `>= 1.4.2 < 3.0.0`, and this stack runs a newer 3.x release. There's no live MCP path from Hermes to SurrealDB today (see the `surreal-memory` skill and README's Memory Architecture section) — connect directly to `http://surrealdb:8000/sql` with `SURREALDB_USER`/`SURREALDB_PASS`/`SURREALDB_NS`/`SURREALDB_DB` from `.env` instead.
 
 </details>
 
@@ -884,8 +890,8 @@ AEF2/
 │
 ├── agents/
 │   └── hermes/
-│       ├── cli-config.yaml        # MCP server connections + Langfuse tracing
-│       ├── system-prompt.md       # Hermes persona, rules, skill dispatch logic
+│       ├── hermes-config.yaml     # MCP server connections + memory provider config
+│       ├── SOUL.md                # Hermes persona, rules, skill dispatch logic
 │       └── skills/
 │           ├── rag-ingest/SKILL.md
 │           ├── second-brain/SKILL.md

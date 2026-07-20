@@ -28,7 +28,7 @@ Host IP for validating services is **$HOST_IP**. All board tooling lives in
 2. **Never `git push`** unless the user has confirmed this repo's history is
    push-safe. Untracking secrets (`git rm --cached`) does NOT scrub them from
    prior commits — pushing would still upload historical secret blobs. GitHub
-   *board* sync uses `gh-sync.py` (the API — no git push), which is safe.
+   *board* sync uses `gh_sync.py` (the API — no git push), which is safe.
 3. **Never paste secrets/tokens into task files, evidence, or issues.** Record
    results, redact values.
 
@@ -47,7 +47,7 @@ python3 pm/pm.py log <id> --text "…"      # work-log note
 python3 pm/pm.py evidence <id> --text "…" # validation evidence (gated)
 python3 pm/pm.py overdue                   # tasks past their time budget
 python3 pm/pm.py stats | list | show <id> | render
-python3 pm/gh-sync.py                      # mirror board -> GitHub Issues
+python3 pm/gh_sync.py                      # mirror board -> GitHub Issues
 ```
 
 `context` ∈ {docker, code, config, data, network, other} and drives the default
@@ -60,7 +60,7 @@ clear objective, a `context`, a realistic `budget_minutes`, and (for services)
 a `--service` and `--endpoint`. Create them with `pm.py new`. Note dependencies
 with `--depends-on`.
 
-**2. Publish.** Run `python3 pm/gh-sync.py` so each task gets a GitHub issue +
+**2. Publish.** Run `python3 pm/gh_sync.py` so each task gets a GitHub issue +
 status labels. (If `gh` is not authenticated it will tell you to run
 `gh auth login`; report that to the user and keep working locally.)
 
@@ -99,7 +99,7 @@ skill for that task's context:
      with no evidence, by design). **Any check fails** → `pm.py move <id> blocked`,
      record the failing evidence, and create/keep a fix task.
 
-**6. Reconcile GitHub.** After status changes, run `python3 pm/gh-sync.py`
+**6. Reconcile GitHub.** After status changes, run `python3 pm/gh_sync.py`
 again so issues + labels + open/closed state match the board.
 
 **7. Commit the board (only when asked, or at a natural checkpoint).** Stage

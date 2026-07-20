@@ -20,7 +20,7 @@ in context" rule applies to code, config, data, and network tasks.
 ```
 pm/
 ├── pm.py              # kanban engine — the ONLY thing that edits the board
-├── gh-sync.py         # idempotent mirror: local tasks -> GitHub Issues
+├── gh_sync.py         # idempotent mirror: local tasks -> GitHub Issues
 ├── kanban.md          # GENERATED board (do not hand-edit)
 ├── tasks/T-*.md       # one file per task = source of truth (+ evidence log)
 ├── state/issue-map.json   # task-id <-> GitHub issue-number (keeps sync idempotent)
@@ -66,10 +66,10 @@ task has no recorded validation evidence. Failed validation → `move <id> block
 
 ```bash
 gh auth login          # choose GitHub.com / SSH or HTTPS / grant 'repo' scope
-python3 pm/gh-sync.py  # creates labels, creates/updates one issue per task
+python3 pm/gh_sync.py  # creates labels, creates/updates one issue per task
 ```
 
-Re-run `gh-sync.py` anytime; the `state/issue-map.json` map prevents duplicates.
+Re-run `gh_sync.py` anytime; the `state/issue-map.json` map prevents duplicates.
 Issues carry the objective + validation checklist + status only — **never** the
 raw evidence log (which can contain command output/tokens).
 

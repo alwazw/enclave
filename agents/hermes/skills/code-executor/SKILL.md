@@ -1,8 +1,16 @@
 # Skill: Code Executor
 **Trigger:** User asks to run code, a script, a shell command, or wants programmatic computation.
 
+**Status: currently non-functional.** The upstream `openinterpreter/open-interpreter`
+image this skill routes to doesn't exist on Docker Hub (`repository does not exist`)
+— the service is `profiles: [disabled]` in `compose/ai-ml/open-interpreter/open-interpreter.yml`
+and never starts under any real profile flag. This skill's procedure is documented as
+originally designed; it needs either a working Open Interpreter build or a different
+sandboxed-execution backend before it can actually run code. Until then, prefer the
+`postgres` MCP tool directly for SQL, and the `filesystem` MCP tool for file I/O.
+
 ## Overview
-Routes all code execution through the Open Interpreter service (sandboxed, no host access). Supports Python, Bash, JavaScript, and SQL. Results are returned as structured output and optionally saved to `/agent-workspace`.
+Routes all code execution through the Open Interpreter service (sandboxed, no host access). Supports Python, Bash, JavaScript, and SQL. Results are returned as structured output and optionally saved to `/workspace`.
 
 ## Service Endpoint
 ```
@@ -16,7 +24,7 @@ Open Interpreter API: http://open-interpreter:8143
 | Bash | File ops, text processing, stack management commands |
 | JavaScript | JSON manipulation, web scraping logic, utility scripts |
 | SQL (Postgres) | Database queries via `postgres` MCP |
-| SurrealQL | Graph/document queries via `surrealdb` MCP |
+| SurrealQL | Graph/document queries — no live MCP path today, `surrealdb` MCP server is `disabled` (see `surreal-memory` skill) |
 
 ## Execution Procedure
 
@@ -46,7 +54,7 @@ Content-Type: application/json
 - Errors → show stderr + suggest fix, retry once
 
 ## Safety Rules
-- Never execute code that modifies Docker host filesystem outside `/agent-workspace`
+- Never execute code that modifies Docker host filesystem outside `/workspace`
 - Never execute `docker rm`, `docker stop`, or `docker system prune` — use `docker-ops` skill instead
 - Never write files containing credentials or secrets
 - Max execution timeout: 60 seconds (raise if user explicitly requests long-running task)
@@ -65,7 +73,7 @@ Content-Type: application/json
 
 ### Data analysis pipeline
 1. Read CSV via `filesystem` MCP → get content
-2. Write to `/agent-workspace/data.csv` 
+2. Write to `/workspace/data.csv` 
 3. Execute pandas analysis in sandbox
 4. Return summary table + save chart if matplotlib used
 

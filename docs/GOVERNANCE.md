@@ -20,13 +20,17 @@ and what is *not* covered. No security theater — read the limitations.
   below anything the agent can prompt-engineer.
 
 ### 2. Jurisdiction (bounded agents)
-- Every Registrar request carries an `X-Company` scope. A CEO agent's
-  environment contains **exactly one** company scope; other companies' tasks
-  are invisible in listings and untouchable (`403`).
+- Every Registrar request carries an `X-Company` scope. The Registrar itself
+  enforces this today — verified live: a scoped request cannot list, read, or
+  mutate another company's tasks (`403`, invisible in listings).
 - Hub scope (`*`) is reserved for the gateway/Chairman and gated by
   `REGISTRAR_ADMIN_TOKEN` when configured.
-- Compose-level separation: each project gets its own network/volume namespace;
-  a CEO container is only attached to what it owns.
+- **Not yet deployed:** the `ceo` service (`compose/governance/ceo/`, a LangGraph
+  supervisor meant to run as one bounded container per company, attached only
+  to its own network/volume namespace) exists in this repo but hasn't been
+  brought up on any live host yet. Until it is, jurisdiction is enforced at the
+  Registrar's API layer (real, verified) but there is no running CEO container
+  to demonstrate the compose-level network/volume isolation described above.
 
 ### 3. Audit trail
 - Every board mutation is a **git commit** inside the board directory: who,

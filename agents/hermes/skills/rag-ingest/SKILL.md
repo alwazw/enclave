@@ -33,7 +33,7 @@ Split into ~512-token chunks with 64-token overlap. Preserve headings as chunk m
 Route embedding through LiteLLM:
 ```
 POST http://litellm:4000/v1/embeddings
-{"model": "<HERMES_EMBEDDING_MODEL>", "input": ["<chunk1>", "<chunk2>"]}
+{"model": "openai/morpheus-embedding-model", "input": ["<chunk1>", "<chunk2>"]}
 ```
 
 ### 5. Upsert to Qdrant
@@ -53,11 +53,11 @@ Report: total chunks ingested, collection name, source identifier.
 | Collection | Purpose |
 |---|---|
 | `knowledge_base` | General user documents |
-| `hermes_memory` | Hermes agent episodic memory |
+| `hermes_memory` | Manually-ingested context about Hermes/agent history — **not** Hermes's own live memory. Hermes's real persistent memory is a local SQLite (`holographic`) store, unrelated to Qdrant (see README's Memory Architecture section). |
 | `code_index` | Code files and snippets |
 | `web_research` | Fetched web content |
 
 ## Error Handling
 - Docling unavailable → fall back to plain text extraction with `filesystem` MCP
-- Qdrant collection not found → create it first with cosine metric, 1536 dimensions (or match embedding model dims)
+- Qdrant collection not found → create it first with cosine metric, 768 dimensions (matches `openai/morpheus-embedding-model`'s Nomic Embed Text backend — check the embedding model's actual dims if it changes)
 - Duplicate detection → check by source URL/path hash before ingesting

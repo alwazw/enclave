@@ -11,7 +11,7 @@ could bolt on.
 | What it is | Governed local agent org (gateway + per-project CEOs) | Autonomous coding agent fleet | Multi-agent software company simulacrum | Multi-agent orchestration framework | Agent graph runtime/library |
 | **Completion is gated by proof** | ✅ Separate service refuses "done" without recorded evidence (409) | ❌ agent self-reports | ❌ self/peer-reported | ❌ self-reported | ⚠️ you can build a gate node; nothing enforces it below the graph |
 | **Real-UI evidence** (screenshot required to close UX work) | ✅ Playwright renders the actual page; file validated on disk | ❌ | ❌ | ❌ | ⚠️ build-it-yourself |
-| **Jurisdiction** (agent physically can't touch another project) | ✅ per-company API scoping + per-project network/volume namespace | ❌ shared workspace | ❌ | ⚠️ role prompts, not enforcement | ⚠️ whatever your tools allow |
+| **Jurisdiction** (agent physically can't touch another project) | ✅ per-company API scoping (live, verified) — ⚠️ per-project network/volume namespace via a bounded CEO container is designed but not yet deployed on any live host | ❌ shared workspace | ❌ | ⚠️ role prompts, not enforcement | ⚠️ whatever your tools allow |
 | **Audit trail** | ✅ every board mutation is a git commit | ⚠️ logs | ⚠️ logs | ⚠️ logs | ⚠️ tracing if you add it |
 | **Fully local / air-gappable** | ✅ compose stack, CPU-only path, no per-token cloud required | ⚠️ typically cloud LLMs | ⚠️ | ⚠️ | ✅ library — depends on your models |
 | Orchestration expressiveness | ⚠️ deliberately simple (supervisor graphs per CEO) | ✅ | ✅ | ✅ | ✅✅ best-in-class |

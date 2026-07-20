@@ -2,7 +2,7 @@
 **Trigger:** User asks to research a topic, find information online, summarize a URL, or compare options from the web.
 
 ## Overview
-Conducts structured web research using SearXNG (private, local) and the `fetch` MCP. Synthesizes results into cited, actionable reports. Optionally ingests findings into the knowledge base.
+Conducts structured web research using SearXNG (private, local), reached through Hermes's own built-in `web-searxng` plugin (not the `fetch` MCP — `fetch` is real but isn't registered as a Hermes tool today; see `docker-ops` skill). Synthesizes results into cited, actionable reports. Optionally ingests findings into the knowledge base.
 
 ## Research Procedure
 
@@ -11,18 +11,14 @@ Break the user's request into 2–4 focused search queries. Example:
 - User: "best open-source vector databases for local deployment"
 - Queries: ["open source vector database comparison 2025", "qdrant vs weaviate vs chroma performance", "self-hosted vector db docker deployment"]
 
-### Phase 2 — Search (SearXNG via MCPO)
+### Phase 2 — Search (Hermes's built-in SearXNG plugin)
 ```http
-GET http://mcpo:8080/search?q=<encoded_query>&format=json&engines=google,bing,duckduckgo
-Authorization: Bearer <MCPO_API_KEY>
+GET http://searxng:8080/search?q=<encoded_query>&format=json
 ```
-Collect top 5 results per query. Deduplicate by domain.
+No auth header — this is Hermes's own `web-searxng` plugin (`hermes-config.yaml`'s `web.backend: searxng`), not a call you issue through mcpo. Collect top 5 results per query. Deduplicate by domain.
 
 ### Phase 3 — Fetch & Extract
-For each promising URL, use the `fetch` MCP:
-```json
-{"url": "<url>", "extract": "text", "max_length": 8000}
-```
+No `fetch` MCP tool is registered today (the `mcp-fetch` container is real but not wired into `hermes-config.yaml`'s `mcp_servers` list). Until it is, read promising URLs via whatever tool access is available (e.g. the `filesystem`/shell path, or ask the user to paste key content) rather than claiming a `fetch` tool call.
 Prioritize: official docs > research papers > reputable tech blogs > forums.
 Skip: paywalled content, thin pages, pure SEO spam.
 

@@ -32,11 +32,14 @@ Standalone dev:
 
 ```bash
 pip install -r requirements.txt && pip install pytest httpx
-BOARD_DIR=/tmp/board uvicorn app:app --port 8090
+BOARD_DIR=/tmp/board uvicorn main:app --port 8090
 pytest tests/ -v
 ```
 
 ## The demo loop (what gets filmed)
+
+Run against a fresh `BOARD_DIR` to see exactly this transcript (task IDs increment
+per-board — a live board with existing tasks will assign a later `T-00NN`, not `T-0001`).
 
 ```bash
 H='-H content-type:application/json -H X-Company:acme'

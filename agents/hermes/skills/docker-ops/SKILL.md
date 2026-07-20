@@ -1,6 +1,15 @@
 # Skill: Docker Ops
 **Trigger:** User wants to inspect, manage, troubleshoot, restart, or interact with Docker containers in the stack.
 
+**Status: the `docker` MCP tool described below doesn't exist today.** `mcp-docker`
+(`compose/ai-ml/mcp-servers/mcp-servers.yml`) is `profiles: [disabled]` — it needs a
+`docker.sock` mount that hasn't been scoped down safely yet — and it isn't registered
+in `agents/hermes/hermes-config.yaml`'s `mcp_servers` list even when running. Until a
+safe docker MCP path exists, container operations go through direct shell access
+(the operator's own terminal) rather than a Hermes-callable tool. This skill's
+structured JSON tool calls below describe the intended design, not a currently
+callable interface.
+
 ## Overview
 Manages the Enclave Docker stack using the `docker` MCP server (which has access to the Docker socket). Provides safe, structured container operations with guardrails against destructive actions.
 
@@ -38,9 +47,10 @@ Examples: `hermes`, `litellm`, `postgres`, `n8n`
 | core | postgres, redis, surrealdb, qdrant, ollama, litellm, hermes, open-webui, mcpo, mcp-servers, searxng, homepage |
 | automation | n8n, flowise |
 | knowledge | trilium, affine, anything-llm, docling |
-| memory | mem0, open-interpreter |
+| memory | mem0 |
 | extras | chromadb, weaviate |
 | observability | langfuse, dozzle |
+| disabled | open-interpreter (image doesn't exist upstream), mcp-surrealdb, mcp-docker |
 | tools | portainer, cloudbeaver |
 
 ## Diagnostic Procedure (when a service is down)
