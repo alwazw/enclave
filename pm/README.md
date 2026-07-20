@@ -23,7 +23,7 @@ pm/
 ├── gh_sync.py         # idempotent mirror: local tasks -> GitHub Issues
 ├── kanban.md          # GENERATED board (do not hand-edit)
 ├── tasks/T-*.md       # one file per task = source of truth (+ evidence log)
-├── state/issue-map.json   # task-id <-> GitHub issue-number (keeps sync idempotent)
+├── config.json        # {"repo": "owner/name"} — where gh_sync.py mirrors to
 └── README.md
 
 .claude/
@@ -69,7 +69,9 @@ gh auth login          # choose GitHub.com / SSH or HTTPS / grant 'repo' scope
 python3 pm/gh_sync.py  # creates labels, creates/updates one issue per task
 ```
 
-Re-run `gh_sync.py` anytime; the `state/issue-map.json` map prevents duplicates.
+Re-run `gh_sync.py` anytime; it re-queries GitHub for issues labeled `corp-os` and matches
+them to tasks by their `[T-XXXX]` title prefix (no local state file — safe to run from a
+fresh clone or a different machine and still avoid duplicates).
 Issues carry the objective + validation checklist + status only — **never** the
 raw evidence log (which can contain command output/tokens).
 
