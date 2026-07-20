@@ -292,3 +292,34 @@ remaining gate for whoever reviews the PR.
 SECRETS ROTATION remains explicitly deferred per the updated charter (do NOT act on the
 accumulated exposures above until the Chairman decides timing, after all other work is
 validated).
+
+## NEEDS-CHAIRMAN — #16 has a structural chicken-and-egg with "don't merge yet"
+
+Latest instruction: finish #16 (among others) and get it dispatch-verified BEFORE
+merging PR #35 to `main`. Flagging a real conflict rather than silently working around
+it or silently stalling: #16's remaining gap (proving the `dependency-check.yml`
+schedule/`workflow_dispatch` trigger actually registers and fires) is, by GitHub's own
+platform design, **only checkable once the workflow file is on the default branch** —
+there is no way to prove this pre-merge from this host (confirmed: `gh workflow run
+--ref launch/hardening` 404s; `act` isn't installed and wouldn't prove trigger
+*registration* even if it were, since that's a GitHub-side mechanism, not something a
+local runner simulates).
+
+**What IS independently, fully verifiable pre-merge, and already done:** the script's
+own logic (`check-image-drift.sh`, run live against real registries — see the original
+#16 close and REMEDIATION_LOG), the workflow YAML's syntax/schema, and
+`requirements.yml` as the single source of truth (`onboard.sh` genuinely reads it, that
+part has nothing to do with GitHub Actions and closes cleanly on its own).
+
+**Not deciding this myself — asking:** either (a) accept the above as the pre-merge
+ceiling for #16 and mark it "as verified as this host can make it, final E2E proof is a
+post-merge step" so the rest of the work order can proceed to your merge decision, or
+(b) hold #16 fully open until after merge and let it be the one item that closes in a
+second pass once main has moved. Continuing to work #31 and anything else actionable in
+the meantime either way — not stalling on this answer, just not inventing a
+workaround that doesn't actually prove what #16 needs proven.
+
+## ROTATION-GATE (Chairman, 2026-07-19) — BINDING
+Secrets rotation is DEFERRED until task #8 (Dispatch second-level audit of ALL CEO closes) is COMPLETE and DELIVERED:
+- every provisional close is dispatch-verified (or reopened->fixed->re-verified), zero pending-dispatch-audit remaining;
+- Dispatch audit reported. ONLY THEN does the rotation pass begin. No rotation action before this gate. Do not rotate any secret.
