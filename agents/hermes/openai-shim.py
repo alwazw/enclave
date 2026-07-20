@@ -64,12 +64,20 @@ def last_user_message(messages):
     return ""
 
 
-def run_hermes(prompt, session):
+def run_hermes(prompt, session, model_override=None):
     env = dict(os.environ)
     env["HOME"] = HERMES_HOME
+    cmd = [HERMES_BIN, "-z", prompt, "--cli", "--continue", session]
+    # Pass through a real litellm model_name if the caller asks for one other
+    # than this shim's own advertised id ("hermes", matching GET /v1/models).
+    # Useful for pointing a single request at a specific pool tier (e.g. to
+    # route around a transiently-exhausted default tier) without needing a
+    # second shim instance or a hermes-config.yaml edit + recreate.
+    if model_override and model_override != MODEL_ID:
+        cmd += ["-m", model_override]
     try:
         proc = subprocess.run(
-            [HERMES_BIN, "-z", prompt, "--cli", "--continue", session],
+            cmd,
             env=env,
             capture_output=True,
             text=True,
@@ -122,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         session = session_key_for(messages)
-        reply, err = run_hermes(prompt, session)
+        reply, err = run_hermes(prompt, session, model_override=body.get("model"))
         created = int(time.time())
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
 
