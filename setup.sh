@@ -99,11 +99,15 @@ gen_password() {
     || openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16
 }
 
-# Replace all <CHANGE_ME> values with generated secrets in .env
+# Replace all <CHANGE_ME>/<CHANGE_ME_32CHARS> values with generated secrets in .env.
+# (Both forms: N8N_ENCRYPTION_KEY ships as <CHANGE_ME_32CHARS> in .env.example --
+# missing this second pattern would leave that literal placeholder string as n8n's
+# real encryption key on a fresh setup.sh install.)
 CHANGED=0
 while IFS= read -r line; do
-  if [[ "$line" =~ ^([A-Z0-9_]+)=\<CHANGE_ME\>$ ]]; then
+  if [[ "$line" =~ ^([A-Z0-9_]+)=\<CHANGE_ME(_32CHARS)?\>$ ]]; then
     VAR="${BASH_REMATCH[1]}"
+    PLACEHOLDER="${BASH_REMATCH[0]#*=}"
     # Use different generators for passwords vs secrets
     if [[ "$VAR" =~ (PASSWORD|PASS)$ ]]; then
       SECRET=$(gen_password)
@@ -113,9 +117,9 @@ while IFS= read -r line; do
     # Escape for sed
     ESCAPED=$(printf '%s\n' "$SECRET" | sed 's/[[\.*^$()+?{|]/\\&/g')
     if [[ "$(uname)" == "Darwin" ]]; then
-      sed -i '' "s|^${VAR}=<CHANGE_ME>|${VAR}=${ESCAPED}|" .env
+      sed -i '' "s|^${VAR}=${PLACEHOLDER}|${VAR}=${ESCAPED}|" .env
     else
-      sed -i "s|^${VAR}=<CHANGE_ME>|${VAR}=${ESCAPED}|" .env
+      sed -i "s|^${VAR}=${PLACEHOLDER}|${VAR}=${ESCAPED}|" .env
     fi
     log "Generated secret for: $VAR"
     CHANGED=$((CHANGED + 1))
