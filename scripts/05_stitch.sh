@@ -1,78 +1,39 @@
-#!/usr/bin/env bash
-# ==============================================================================
-# 🚀 ARCHITECTURE COMPILER & ENVIRONMENT STITCHER (v4.0.1)
-# Path: scripts/05_stitch.sh
-# ==============================================================================
-set -Eeuo pipefail
+#!/bin/bash
+# ---------------------------------------------------------------------
+# scripts/05_stitch.sh - Secure, Non-Destructive Environment Compiler
+# ---------------------------------------------------------------------
+set -euo pipefail
 
-SYNCHED_ALIASES="$HOME/.bash_aliases_pro"
-DATA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Source global parameters and error controllers
+source "$(dirname "$0")/../config.env"
+source "$(dirname "$0")/00_init_core.sh"
 
-log_info() { echo -e "\e[1;34m[COMPILER]\e[0m \e[1;36m▶ $1\e[0m"; }
-log_success() { echo -e "\e[1;32m[SUCCESS] ✔ $1\e[0m"; }
-log_warn() { echo -e "\e[1;33m[WARNING] ⚠️ $1\e[0m"; }
-
-log_info "Initializing compilation sequence..."
-
-# 1. Establish fresh, untainted active runtime file
-cat << EOF > "$SYNCHED_ALIASES"
-# ==============================================================================
-# 🛠️ SYNCHED AUTOMATED DESKTOP PROFILE (DYNAMICALLY COMPILED - DO NOT EDIT)
-# Engine Matrix Version: 2026.4
-# Generated: $(date)
-# Source Core: $DATA_DIR
-# ==============================================================================
-EOF
-
-# 2. Automatically inject Node/NPM/NVM environment profiles if discovered
-# Looks in project root directory (var/node.env or node.env)
-for node_path in "$DATA_DIR/var/node.env" "$DATA_DIR/node.env"; do
-    if [ -f "$node_path" ]; then
-        log_info "Processing Node & NPM system vectors [$(basename "$node_path")]..."
-        echo -e "\n# --- NODE ENVIRONMENT RUNTIME CAPTURES ---" >> "$SYNCHED_ALIASES"
-        cat "$node_path" >> "$SYNCHED_ALIASES"
-        break
-    fi
-done
-
-# 3. Parse and Compile structural data mappings (aliases.env)
-if [ -f "$DATA_DIR/var/aliases.env" ]; then
-    log_info "Processing shortcuts database [var/aliases.env]..."
-    echo -e "\n# --- HARDCODED RUNTIME TRANSLATIONS ---" >> "$SYNCHED_ALIASES"
-
-    while IFS='=' read -r key value || [ -n "$key" ]; do
-        key=$(echo "$key" | xargs 2>/dev/null || echo "$key")
-        [[ "$key" =~ ^#.*$ ]] && continue
-        [[ -z "$key" ]] && continue
-
-        clean_value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
-        echo "alias ${key}='${clean_value}'" >> "$SYNCHED_ALIASES"
-    done < "$DATA_DIR/var/aliases.env"
-else
-    log_warn "Could not locate $DATA_DIR/var/aliases.env"
+if [ "$EXEC_STITCH" -ne 1 ]; then
+    echo "⏭️ Module [05_stitch] disabled in config.env. Skipping." | tee -a "$LOG_FILE"
+    exit 0
 fi
 
-# 4. Concatenate and Inject Core System Operational Scripts (functions.env)
-if [ -f "$DATA_DIR/var/functions.env" ]; then
-    log_info "Injecting custom binary functional scopes [var/functions.env]..."
-    echo -e "\n# --- INTEGRATED ORCHESTRATION FUNCTIONS ---" >> "$SYNCHED_ALIASES"
-    cat "$DATA_DIR/var/functions.env" >> "$SYNCHED_ALIASES"
-else
-    log_warn "Could not locate $DATA_DIR/var/functions.env"
-fi
+echo "🚀 [05_stitch] Initiating environment compilation for user: $TARGET_USER..." | tee -a "$LOG_FILE"
 
-# 5. Bind compiled asset upstream matrix securely inside local machine profiles
-if ! grep -q "source $SYNCHED_ALIASES" "$HOME/.bashrc"; then
-    log_info "Stitching local manifest references within home shell profile..."
-    
-    # Using single quotes around 'EOF' prevents Bash from trying to evaluate variables during injection
-    cat << 'EOF' >> "$HOME/.bashrc"
+# Define compile targets cleanly pointing to user space
+STITCH_TARGET="$TARGET_HOME/.bash_aliases_pro"
+BASHRC_HOOK="[ -f $STITCH_TARGET ] && . $STITCH_TARGET"
 
-# --- SYNCED MANIFESTATION ORCHESTRATION LAYER ---
-if [ -f "$HOME/.bash_aliases_pro" ]; then
-    source "$HOME/.bash_aliases_pro"
-fi
-EOF
-fi
+# Step A: Compile modular context components securely
+echo "# =========================================================" > "$STITCH_TARGET"
+echo "# COMPILED PROFILE ENVIRONMENT - DO NOT DIRECTLY EDIT THIS FILE" >> "$STITCH_TARGET"
+echo "# Generated dynamically via alwazw/ubuntu-customz" >> "$STITCH_TARGET"
+echo "# =========================================================" >> "$STITCH_TARGET"
 
-log_success "Environment profiles compiled down to active machine: $SYNCHED_ALIASES"
+# Inject component files if they exist in repo root
+[ -f "../aliases.env" ] && cat "../aliases.env" >> "$STITCH_TARGET"
+[ -f "../functions.env" ] && cat "../functions.env" >> "$STITCH_TARGET"
+
+# Step B: Securely hook the compiled file to the user's primary .bashrc
+echo "🔗 Anchoring profile linkage inside target .bashrc..." | tee -a "$LOG_FILE"
+safe_append_line "$BASHRC_HOOK" "$TARGET_HOME/.bashrc"
+
+# Step C: Fix file permissions so the normal user owns their files (Crucial Fix)
+chown "$TARGET_USER":"$TARGET_USER" "$STITCH_TARGET"
+
+echo "✅ Environment stitched successfully. Clean terminal profile active for $TARGET_USER." | tee -a "$LOG_FILE"
