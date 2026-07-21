@@ -1,5 +1,5 @@
 # project — Kanban  
-_generated 2026-07-21T19:21:45Z_
+_generated 2026-07-21T19:44:17Z_
 
 
 ## BACKLOG
@@ -7,7 +7,6 @@ _generated 2026-07-21T19:21:45Z_
 
 ## TODO
 
-- **T-0001** W1 — Repo hygiene & brand reconciliation (AEF2→Enclave in public surfaces) — product / unassigned
 - **T-0002** W2 — README inversion: governance-first, operator manual → docs/OPERATIONS.md — product / unassigned
 - **T-0003** W3 — Evidence-gate demo (hero asset) + one-command demo-refusal trigger — devops / unassigned
 - **T-0004** W4 — Security floor: docker-socket-proxy in front of dozzle/homepage/hermes/portainer — devops / unassigned
@@ -16,13 +15,14 @@ _generated 2026-07-21T19:21:45Z_
 
 ## DOING
 
+- **T-0001** W1 — Repo hygiene & brand reconciliation (AEF2→Enclave in public surfaces) — product / ceo
 
 ## BLOCKED
 
 
 ## VALIDATING
 
-- **T-0007** W0 — Ground-truth recon + independently prove the evidence gate (409) — qa / unassigned ✓evidence
 
 ## DONE
 
+- **T-0007** W0 — Ground-truth recon + independently prove the evidence gate (409) — qa / unassigned ✓evidence
