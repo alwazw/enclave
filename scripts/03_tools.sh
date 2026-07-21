@@ -1,24 +1,49 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# 1. Update system and install absolute essential utilities
-echo "📦 Updating package lists and installing core utilities..."
+#!/bin/bash
+# ---------------------------------------------------------------------
+# scripts/03_tools.sh - Component of alwazw/ubuntu-customz Suite
+# Deploys Unified Terminal Core Utilities, Dev Tooling, and NVM Engine
+# ---------------------------------------------------------------------
+
+echo "📦 [03_tools] Updating package lists and installing system engines..."
 apt-get update && apt-get install -y \
-    ca-certificates \
-    openssh-server \
-    curl \
-    git \
-    tmux \
-    btop \
-    htop \
-    ncdu \
-    tree \
-    ripgrep \
     bat \
-    fzf \
+    btop \
+    build-essential \
+    ca-certificates \
+    curl \
     dos2unix \
-    zram-tools \
-    net-tools
+    fzf \
+    git \
+    htop \
+    jq \
+    ncdu \
+    net-tools \
+    openssh-server \
+    pipx \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ripgrep \
+    sudo \
+    tmux \
+    tree \
+    ufw \
+    zram-tools
+
+echo "🚀 Triggering user-level Node Version Manager (NVM) deployment..."
+# Executes official installation script
+curl -o- https://githubusercontent.com | bash
+
+# Temporarily binds environment context so the installation can complete cleanly
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+echo "🟢 Provisioning Node.js LTS Engine & Native NPM layer..."
+nvm install --lts
+nvm use --lts
 
 # 2. Prepare and Register Docker Official Repository
 echo "🔑 Registering Docker repository and security keys..."
