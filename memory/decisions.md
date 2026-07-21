@@ -59,11 +59,21 @@ Not taken on the CEO's word — observed directly:
 - `pm/pm.py` enforces the same gate (refused W0 `done` without evidence).
 The governance engine the README will sell is real.
 
-## OPEN — awaiting Chairman
-- **ENV-1 evidence rendering** (above): produce compose/container evidence on the real
-  host vs. unblock the registry in-session.
-- **C2 mockups:** `c2-mockups-v1.html` / `v2.html` are held by the Chairman and not in
-  the repo — W1 cannot commit them to `docs/design/` until provided.
-- **Branch:** harness pinned this session to `claude/install-code-cli-866lsc`; D6 wants a
-  `launch` branch. Proceeding on the pinned branch, PR into `main`; will reconcile the
-  name with the Chairman.
+## 2026-07-21 — Chairman answers (three escalations resolved)
+- **ENV-1 → run in-sandbox, not on the host.** Chairman: *"run this as a full enclave
+  project. nothing to do with my host."* So the sandbox IS the project host; all evidence
+  (incl. container/compose gates) renders here, not on the Chairman's machine. Enabler
+  found: `dockerd` runs and **`mirror.gcr.io` (pull-through cache) pulls Docker Hub images
+  through the proxy** — library AND vendor (verified `python:3.12-slim`,
+  `tecnativa/docker-socket-proxy`). Configured `/etc/docker/daemon.json`
+  `registry-mirrors`. Remaining nut: the three custom images (registrar/ceo/ux-validate)
+  `apt-get` at build; the proxy is HTTPS-CONNECT-only (405 on plain-HTTP), so builds need
+  the https+proxy-CA apt workaround (README) — owned by head-of-devops as the in-sandbox
+  bring-up. (Corrects the earlier "no image pulls" note — pulls DO work via the mirror.)
+- **C2 mockups → provided + committed.** Chairman attached them; reconciled the wordmark
+  to Enclave and committed to `docs/design/c2-mockups-v1.html` / `v2.html` (W1). No longer
+  outside the repo.
+- **Branch → `launch` created** (Chairman authorized). Work on `launch` → PR #37 into
+  `main` → squash-merge → tag `v1.0.0` at the end; branch protection to follow (D6).
+
+_No open items awaiting the Chairman as of this entry._

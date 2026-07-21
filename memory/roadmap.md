@@ -15,11 +15,11 @@ Board: W1–W6 (+ W0 recon/proof). Every task closes through the Registrar with 
 | W5 | `core` as default profile; extended profiles opt-in | no | T-0005 |
 | W6 | CONTRIBUTING, CODE_OF_CONDUCT, `docs/launch/SHOW-HN.md` (Chairman fires the post) | no | T-0006 |
 
-**Sandbox constraint on evidence:** code/config/docs for all six are buildable here,
-and the gate `409` is provable here via uvicorn. But container/compose-rendered
-evidence — W4 socket-proxy healthcheck, W5 "core up healthy", W3's full multi-service
-demo GIF — needs a Docker-Hub-capable host (the real Enclave host). Escalated to the
-Chairman (decisions.md, ENV-1).
+**Evidence renders in-sandbox (Chairman's call, decisions.md ENV-1):** the sandbox is
+the project host. `dockerd` runs and images pull via `mirror.gcr.io`, so the container/
+compose gates (W4 healthcheck, W5 core-up, W3 demo) are producible here. The gate `409`
+is already proven via uvicorn. Open infra nut: apt-in-build for the three custom images
+(head-of-devops owns the in-sandbox bring-up).
 
 ## NEXT
 - C2 Command Center — **explicitly NOT in this directive** (next mission). If the CEO

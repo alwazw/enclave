@@ -28,9 +28,12 @@ in the stack exists to make that refusal real instead of decorative.
   leak into any public doc/diagram/README.
 
 ## Hosts & environments
-- **Real Enclave host:** the Chairman's dev host (`$HOST_IP`), Docker-capable, runs
-  the live 32-service stack. This is where container/compose-based evidence renders.
-- **Code-web sandbox** (where the CEO currently builds): repo cloned, ephemeral,
-  `dockerd` runs BUT Docker Hub blob CDN is proxy-blocked (403) — no image pulls,
-  so no `docker build` / `docker compose up`. Pure-Python services (registrar via
-  uvicorn, pip from pypi) DO run here. Only git persists; commit or it's gone.
+- **Project sandbox** (where the CEO builds AND runs the stack — Chairman: *"run this as
+  a full enclave project, nothing to do with my host"*): repo cloned, ephemeral,
+  `dockerd` runs. Docker Hub's own blob CDN is proxy-blocked (403), but **`mirror.gcr.io`
+  (pull-through cache) pulls images through the proxy** — so image pulls work via the
+  configured `registry-mirrors`. Custom-image builds need the https+proxy-CA apt
+  workaround (proxy is HTTPS-CONNECT-only). Pure-Python services (registrar via uvicorn,
+  pip from pypi) also run here. Only git persists — commit or it's gone.
+- **`$HOST_IP`** is the Chairman's own machine and is explicitly NOT part of this mission's
+  execution — do not offload work or evidence to it.
