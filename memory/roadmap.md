@@ -3,8 +3,9 @@
 ## NOW — Mission `enclave-launch` (BUILD-DIRECTIVE from the Chairman via Dispatch)
 Turn the repo from *strong substance, launch-unready packaging* into a launch-ready
 public repository led by its governance story, with the evidence gate demonstrated.
-Board: W1–W6 (+ W0 recon/proof). Every task closes through the Registrar with evidence
-(dogfood the gate). Definition of Done in the directive §7.
+Board: W1–W6 (+ W0 recon/proof). Every task closes only with recorded evidence — the same
+evidence gate enforced locally by `pm.py` (`move … done` refuses without evidence) and over
+HTTP by the Registrar for the live stack (dogfood it). Definition of Done in the directive §7.
 
 | WS | What | Launch-blocking? | Board |
 |----|------|------------------|-------|
