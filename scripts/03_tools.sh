@@ -33,17 +33,35 @@ apt-get update && apt-get install -y \
     ufw \
     zram-tools
 
-echo "🚀 Triggering user-level Node Version Manager (NVM) deployment..."
-# Executes official installation script
-curl -o- https://githubusercontent.com | bash
+# ------------------------------------------------------------------------------
+# NVM + Node.js LTS  (installed as the TARGET USER, not root)
+# ------------------------------------------------------------------------------
+# This module runs as root, but NVM is a *user-level* runtime and var/node.env
+# (written further below) points at the target user's ~/.nvm. If we installed as
+# root, NVM would land in /root/.nvm and node.env would reference a path that
+# does not exist for the user. So resolve the unprivileged user and run the whole
+# NVM install/use flow as them via `sudo -u ... -H` (so $HOME is their home).
+NVM_RUN_USER="${SUDO_USER:-$USER}"
+if [ "$NVM_RUN_USER" = "root" ]; then
+    NVM_RUN_USER=$(logname 2>/dev/null || echo "ubuntu")
+fi
 
-# Temporarily binds environment context so the installation can complete cleanly
+echo "🚀 Triggering user-level Node Version Manager (NVM) deployment for '${NVM_RUN_USER}'..."
+# NOTE: nvm.sh is NOT compatible with `set -u` (nounset) — it references unbound
+# internals like PROVIDED_VERSION and aborts under strict mode. The inner shell
+# therefore disables nounset around the nvm sourcing/commands. Idempotent: the
+# NVM installer updates in place and `nvm install --lts` is a no-op if present.
+sudo -u "$NVM_RUN_USER" -H bash <<'NVM_SETUP'
+set -eo pipefail
 export NVM_DIR="$HOME/.nvm"
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+set +u
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
 echo "🟢 Provisioning Node.js LTS Engine & Native NPM layer..."
 nvm install --lts
 nvm use --lts
+node -v && npm -v
+NVM_SETUP
 
 # 2. Prepare and Register Docker Official Repository
 echo "🔑 Registering Docker repository and security keys..."
@@ -116,7 +134,7 @@ export NVM_DIR="$TARGET_USER_HOME/.nvm"
 [ -s "\$NVM_DIR/bash_completion" ] && \. "\$NVM_DIR/bash_completion"
 
 # Universal fallback layout path for global npm packages
-export PATH="\$TARGET_USER_HOME/.npm-global/bin:\$PATH"
+export PATH="$TARGET_USER_HOME/.npm-global/bin:\$PATH"
 EOF
 
 echo "✅ Node operational environment metrics locked into: $DATA_DIR/var/node.env"
