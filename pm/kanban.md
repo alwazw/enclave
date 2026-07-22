@@ -1,5 +1,5 @@
 # Enclave — Kanban  
-_generated 2026-07-21T19:52:50Z_
+_generated 2026-07-22T17:52:45Z_
 
 
 ## BACKLOG
@@ -16,7 +16,8 @@ _generated 2026-07-21T19:52:50Z_
 
 ## DOING
 
-- **T-0001** W1 — Repo hygiene & brand reconciliation (AEF2→Enclave in public surfaces) — product / ceo
+- **T-0001** W1 — Repo hygiene & brand reconciliation (AEF2→Enclave in public surfaces) — product / ceo ⚠️overdue
+- **T-0009** In-sandbox core bring-up — apt-in-build fix, containerized 409, core spine up, ghcr gap — devops / head-of-devops
 
 ## BLOCKED
 
