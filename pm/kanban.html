@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban</title>
+<style>
+:root{--bg:#0f1117;--panel:#161a23;--card:#1e2430;--text:#e6e9ef;--muted:#8b93a7;
+--accent:#6ea8fe;--ok:#3fb96f;--warn:#e5a53a;--bad:#e05d5d;--val:#b07fe8;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);
+font:14px/1.45 -apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif}
+header{padding:14px 20px;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}header .meta{color:var(--muted);font-size:12px}
+header input{margin-left:auto;background:var(--panel);border:1px solid #2a3140;color:var(--text);
+border-radius:8px;padding:6px 10px;min-width:220px}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,1fr);gap:10px;
+padding:0 16px 24px;overflow-x:auto}
+.col{background:var(--panel);border-radius:12px;padding:10px;min-height:120px}
+.col h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+margin:2px 4px 10px;display:flex;justify-content:space-between}
+.col h2 .n{color:var(--text)}
+.card{background:var(--card);border:1px solid #2a3140;border-left:3px solid var(--accent);
+border-radius:9px;padding:9px 10px;margin-bottom:8px}
+.card .id{font-size:11px;color:var(--accent);font-weight:600}
+.card .title{margin:2px 0 6px;font-weight:600}
+.card .tags{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.tag{background:#242b3a;border-radius:20px;padding:1px 8px}
+.overdue{border-left-color:var(--bad)}.overdue .elapsed{color:var(--bad);font-weight:700}
+.col-done .card{border-left-color:var(--ok);opacity:.85}
+.col-blocked .card{border-left-color:var(--bad)}
+.col-validating .card{border-left-color:var(--val)}
+.ev{color:var(--ok)}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="proj"></h1>
+  <span class="meta" id="meta"></span>
+  <input id="q" placeholder="filter: text, dept, assignee…">
+</header>
+<div class="board" id="board"></div>
+<script>
+const DATA = {"project": "Enclave", "repo": "alwazw/enclave", "host_ip": "127.0.0.1", "generated_at": "2026-07-22T21:33:25Z", "tasks": [{"id": "T-0001", "title": "W1 \u2014 Repo hygiene & brand reconciliation (AEF2\u2192Enclave in public surfaces)", "status": "doing", "dept": "product", "context": "config", "assignee": "ceo", "service": "", "endpoint": "", "budget_minutes": "90", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "2026-07-21T19:44:17Z", "done_at": "", "elapsed_min": 1549, "objective": "W1 \u2014 Repo hygiene & brand reconciliation (AEF2\u2192Enclave in public surfaces)", "evidence": false}, {"id": "T-0002", "title": "W2 \u2014 README inversion: governance-first, operator manual \u2192 docs/OPERATIONS.md", "status": "todo", "dept": "product", "context": "other", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "180", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "W2 \u2014 README inversion: governance-first, operator manual \u2192 docs/OPERATIONS.md", "evidence": false}, {"id": "T-0003", "title": "W3 \u2014 Evidence-gate demo (hero asset) + one-command demo-refusal trigger", "status": "validating", "dept": "devops", "context": "docker", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "180", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "W3 \u2014 Evidence-gate demo (hero asset) + one-command demo-refusal trigger", "evidence": true}, {"id": "T-0004", "title": "W4 \u2014 Security floor: docker-socket-proxy in front of dozzle/homepage/hermes/portainer", "status": "todo", "dept": "devops", "context": "docker", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "150", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "W4 \u2014 Security floor: docker-socket-proxy in front of dozzle/homepage/hermes/portainer", "evidence": false}, {"id": "T-0005", "title": "W5 \u2014 Launch legibility: core as default profile, extended profiles opt-in", "status": "todo", "dept": "devops", "context": "config", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "90", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "W5 \u2014 Launch legibility: core as default profile, extended profiles opt-in", "evidence": false}, {"id": "T-0006", "title": "W6 \u2014 Launch assets: CONTRIBUTING, CODE_OF_CONDUCT, docs/launch/SHOW-HN.md", "status": "todo", "dept": "product", "context": "other", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "90", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "W6 \u2014 Launch assets: CONTRIBUTING, CODE_OF_CONDUCT, docs/launch/SHOW-HN.md", "evidence": false}, {"id": "T-0007", "title": "W0 \u2014 Ground-truth recon + independently prove the evidence gate (409)", "status": "done", "dept": "qa", "context": "code", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "60", "due": "", "depends_on": "", "created_at": "2026-07-21T19:21:33Z", "started_at": "", "done_at": "2026-07-21T19:44:17Z", "elapsed_min": 0, "objective": "W0 \u2014 Ground-truth recon + independently prove the evidence gate (409)", "evidence": true}, {"id": "T-0008", "title": "Board XSS hardening \u2014 escape agent-authored task fields in board_template.html + registrar /board", "status": "todo", "dept": "engineering", "context": "code", "assignee": "", "service": "", "endpoint": "", "budget_minutes": "60", "due": "", "depends_on": "", "created_at": "2026-07-21T19:52:50Z", "started_at": "", "done_at": "", "elapsed_min": 0, "objective": "Board XSS hardening \u2014 escape agent-authored task fields in board_template.html + registrar /board", "evidence": false}, {"id": "T-0009", "title": "In-sandbox core bring-up \u2014 apt-in-build fix, containerized 409, core spine up, ghcr gap", "status": "done", "dept": "devops", "context": "docker", "assignee": "head-of-devops", "service": "", "endpoint": "", "budget_minutes": "240", "due": "", "depends_on": "", "created_at": "2026-07-22T17:52:45Z", "started_at": "2026-07-22T17:52:45Z", "done_at": "2026-07-22T18:19:40Z", "elapsed_min": 26, "objective": "Stand up the Enclave core governance stack IN THIS SANDBOX (Chairman: nothing on his host). Deliver a containerized Registrar 409, core services healthy, and the gate refusing a test claim on the running stack. Enables W3 demo + W5 core-up evidence.", "evidence": true}]};
+const STATUSES=["backlog","todo","doing","blocked","validating","done"];
+document.getElementById("proj").textContent = DATA.project + " — board";
+document.getElementById("meta").textContent =
+  (DATA.repo?DATA.repo+" · ":"") + "generated " + DATA.generated_at;
+function overdue(t){return (t.status==="doing"||t.status==="validating") &&
+  +t.budget_minutes>0 && t.elapsed_min > +t.budget_minutes;}
+function render(filter){
+  const b=document.getElementById("board"); b.innerHTML="";
+  const f=(filter||"").toLowerCase();
+  for(const s of STATUSES){
+    const items=DATA.tasks.filter(t=>t.status===s &&
+      (!f || (t.title+" "+t.id+" "+t.dept+" "+t.assignee+" "+t.objective).toLowerCase().includes(f)));
+    const col=document.createElement("div");
+    col.className="col col-"+s;
+    col.innerHTML=`<h2><span>${s}</span><span class="n">${items.length}</span></h2>`;
+    for(const t of items){
+      const c=document.createElement("div");
+      c.className="card"+(overdue(t)?" overdue":"");
+      c.title=t.objective||"";
+      c.innerHTML=`<div class="id">${t.id}</div><div class="title">${t.title}</div>
+        <div class="tags">
+          <span class="tag">${t.dept||"-"}</span>
+          <span class="tag">${t.assignee||"unassigned"}</span>
+          ${t.context?`<span class="tag">${t.context}</span>`:""}
+          ${t.budget_minutes?`<span class="tag elapsed">${t.elapsed_min}/${t.budget_minutes}m</span>`:""}
+          ${t.evidence?`<span class="tag ev">✓ evidence</span>`:""}
+          ${overdue(t)?`<span class="tag" style="color:var(--bad)">OVERDUE</span>`:""}
+        </div>`;
+      col.appendChild(c);
+    }
+    b.appendChild(col);
+  }
+}
+document.getElementById("q").addEventListener("input",e=>render(e.target.value));
+render("");
+</script>
+</body>
+</html>
