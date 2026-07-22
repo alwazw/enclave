@@ -2,7 +2,7 @@
  "project": "Enclave",
  "repo": "alwazw/enclave",
  "host_ip": "127.0.0.1",
- "generated_at": "2026-07-22T18:19:40Z",
+ "generated_at": "2026-07-22T21:33:25Z",
  "tasks": [
   {
    "id": "T-0001",
@@ -19,7 +19,7 @@
    "created_at": "2026-07-21T19:21:33Z",
    "started_at": "2026-07-21T19:44:17Z",
    "done_at": "",
-   "elapsed_min": 1355,
+   "elapsed_min": 1549,
    "objective": "W1 \u2014 Repo hygiene & brand reconciliation (AEF2\u2192Enclave in public surfaces)",
    "evidence": false
   },
@@ -45,7 +45,7 @@
   {
    "id": "T-0003",
    "title": "W3 \u2014 Evidence-gate demo (hero asset) + one-command demo-refusal trigger",
-   "status": "todo",
+   "status": "validating",
    "dept": "devops",
    "context": "docker",
    "assignee": "",
@@ -59,7 +59,7 @@
    "done_at": "",
    "elapsed_min": 0,
    "objective": "W3 \u2014 Evidence-gate demo (hero asset) + one-command demo-refusal trigger",
-   "evidence": false
+   "evidence": true
   },
   {
    "id": "T-0004",

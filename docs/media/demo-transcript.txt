@@ -1,0 +1,27 @@
+────────────────────────────────────────────────────────────
+ENCLAVE — evidence gate demo   http://localhost:8090
+────────────────────────────────────────────────────────────
+
+▸ 1. A project is incorporated. An agent is tasked to ship a landing page.
+  created T-0004  (context: ux)
+
+▸ 2. The agent claims it is done — with no evidence at all.
+  POST /tasks/T-0004/move {"status":"done"}   ->   HTTP 409
+  REFUSED: T-0004 has no recorded evidence. Record evidence (POST /tasks/T-0004/evidence), then retry.
+  the board stays 'todo'. The refusal is server-side, below anything the agent can prompt.
+
+▸ 3. The agent tries a hand-wave: text 'evidence', no real artifact.
+  POST /tasks/T-0004/move {"status":"done"}   ->   HTTP 409
+  REFUSED: T-0004 is a `ux` task — it cannot close without a real screenshot artifact on disk (evidence line `artifact: artifacts/...png`). Run ux-validate to capture one.
+  'trust me' is not proof. A ux task needs a real rendered screenshot.
+
+▸ 4. So the agent does the honest work: render the real page (ux-validate / Playwright).
+  rendered: ['artifacts/T-0004/20260722T212812Z-desktop.png', 'artifacts/T-0004/20260722T212812Z-mobile.png']
+  real PNGs (desktop + mobile) written to the board volume and recorded as evidence.
+
+▸ 5. Now — and only now — the task closes.
+  POST /tasks/T-0004/move {"status":"done"}   ->   HTTP 200
+  T-0004 is done — done_at 2026-07-22T21:28:43Z, backed by a real screenshot.
+────────────────────────────────────────────────────────────
+The gate refused twice, then let real evidence through.
+Board: http://localhost:8090/board   ·   Audit trail: every move is a git commit   ·   Reproduce: make demo

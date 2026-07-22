@@ -1,5 +1,5 @@
 # Enclave — Kanban  
-_generated 2026-07-22T18:19:40Z_
+_generated 2026-07-22T21:33:25Z_
 
 
 ## BACKLOG
@@ -8,7 +8,6 @@ _generated 2026-07-22T18:19:40Z_
 ## TODO
 
 - **T-0002** W2 — README inversion: governance-first, operator manual → docs/OPERATIONS.md — product / unassigned
-- **T-0003** W3 — Evidence-gate demo (hero asset) + one-command demo-refusal trigger — devops / unassigned
 - **T-0004** W4 — Security floor: docker-socket-proxy in front of dozzle/homepage/hermes/portainer — devops / unassigned
 - **T-0005** W5 — Launch legibility: core as default profile, extended profiles opt-in — devops / unassigned
 - **T-0006** W6 — Launch assets: CONTRIBUTING, CODE_OF_CONDUCT, docs/launch/SHOW-HN.md — product / unassigned
@@ -23,6 +22,7 @@ _generated 2026-07-22T18:19:40Z_
 
 ## VALIDATING
 
+- **T-0003** W3 — Evidence-gate demo (hero asset) + one-command demo-refusal trigger — devops / unassigned ✓evidence
 
 ## DONE
 
