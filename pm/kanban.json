@@ -2,7 +2,7 @@
  "project": "Enclave",
  "repo": "alwazw/enclave",
  "host_ip": "127.0.0.1",
- "generated_at": "2026-07-22T17:52:45Z",
+ "generated_at": "2026-07-22T18:19:40Z",
  "tasks": [
   {
    "id": "T-0001",
@@ -19,7 +19,7 @@
    "created_at": "2026-07-21T19:21:33Z",
    "started_at": "2026-07-21T19:44:17Z",
    "done_at": "",
-   "elapsed_min": 1328,
+   "elapsed_min": 1355,
    "objective": "W1 \u2014 Repo hygiene & brand reconciliation (AEF2\u2192Enclave in public surfaces)",
    "evidence": false
   },
@@ -159,7 +159,7 @@
   {
    "id": "T-0009",
    "title": "In-sandbox core bring-up \u2014 apt-in-build fix, containerized 409, core spine up, ghcr gap",
-   "status": "doing",
+   "status": "done",
    "dept": "devops",
    "context": "docker",
    "assignee": "head-of-devops",
@@ -170,10 +170,10 @@
    "depends_on": "",
    "created_at": "2026-07-22T17:52:45Z",
    "started_at": "2026-07-22T17:52:45Z",
-   "done_at": "",
-   "elapsed_min": 0,
+   "done_at": "2026-07-22T18:19:40Z",
+   "elapsed_min": 26,
    "objective": "Stand up the Enclave core governance stack IN THIS SANDBOX (Chairman: nothing on his host). Deliver a containerized Registrar 409, core services healthy, and the gate refusing a test claim on the running stack. Enables W3 demo + W5 core-up evidence.",
-   "evidence": false
+   "evidence": true
   }
  ]
 }
