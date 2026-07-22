@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban</title>
+<style>
+:root{--bg:#0f1117;--panel:#161a23;--card:#1e2430;--text:#e6e9ef;--muted:#8b93a7;
+--accent:#6ea8fe;--ok:#3fb96f;--warn:#e5a53a;--bad:#e05d5d;--val:#b07fe8;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);
+font:14px/1.45 -apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif}
+header{padding:14px 20px;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}header .meta{color:var(--muted);font-size:12px}
+header input{margin-left:auto;background:var(--panel);border:1px solid #2a3140;color:var(--text);
+border-radius:8px;padding:6px 10px;min-width:220px}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,1fr);gap:10px;
+padding:0 16px 24px;overflow-x:auto}
+.col{background:var(--panel);border-radius:12px;padding:10px;min-height:120px}
+.col h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+margin:2px 4px 10px;display:flex;justify-content:space-between}
+.col h2 .n{color:var(--text)}
+.card{background:var(--card);border:1px solid #2a3140;border-left:3px solid var(--accent);
+border-radius:9px;padding:9px 10px;margin-bottom:8px}
+.card .id{font-size:11px;color:var(--accent);font-weight:600}
+.card .title{margin:2px 0 6px;font-weight:600}
+.card .tags{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.tag{background:#242b3a;border-radius:20px;padding:1px 8px}
+.overdue{border-left-color:var(--bad)}.overdue .elapsed{color:var(--bad);font-weight:700}
+.col-done .card{border-left-color:var(--ok);opacity:.85}
+.col-blocked .card{border-left-color:var(--bad)}
+.col-validating .card{border-left-color:var(--val)}
+.ev{color:var(--ok)}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="proj"></h1>
+  <span class="meta" id="meta"></span>
+  <input id="q" placeholder="filter: text, dept, assignee…">
+</header>
+<div class="board" id="board"></div>
+<script>
+const DATA = /*__DATA__*/null;
+const STATUSES=["backlog","todo","doing","blocked","validating","done"];
+document.getElementById("proj").textContent = DATA.project + " — board";
+document.getElementById("meta").textContent =
+  (DATA.repo?DATA.repo+" · ":"") + "generated " + DATA.generated_at;
+function overdue(t){return (t.status==="doing"||t.status==="validating") &&
+  +t.budget_minutes>0 && t.elapsed_min > +t.budget_minutes;}
+function render(filter){
+  const b=document.getElementById("board"); b.innerHTML="";
+  const f=(filter||"").toLowerCase();
+  for(const s of STATUSES){
+    const items=DATA.tasks.filter(t=>t.status===s &&
+      (!f || (t.title+" "+t.id+" "+t.dept+" "+t.assignee+" "+t.objective).toLowerCase().includes(f)));
+    const col=document.createElement("div");
+    col.className="col col-"+s;
+    col.innerHTML=`<h2><span>${s}</span><span class="n">${items.length}</span></h2>`;
+    for(const t of items){
+      const c=document.createElement("div");
+      c.className="card"+(overdue(t)?" overdue":"");
+      c.title=t.objective||"";
+      c.innerHTML=`<div class="id">${t.id}</div><div class="title">${t.title}</div>
+        <div class="tags">
+          <span class="tag">${t.dept||"-"}</span>
+          <span class="tag">${t.assignee||"unassigned"}</span>
+          ${t.context?`<span class="tag">${t.context}</span>`:""}
+          ${t.budget_minutes?`<span class="tag elapsed">${t.elapsed_min}/${t.budget_minutes}m</span>`:""}
+          ${t.evidence?`<span class="tag ev">✓ evidence</span>`:""}
+          ${overdue(t)?`<span class="tag" style="color:var(--bad)">OVERDUE</span>`:""}
+        </div>`;
+      col.appendChild(c);
+    }
+    b.appendChild(col);
+  }
+}
+document.getElementById("q").addEventListener("input",e=>render(e.target.value));
+render("");
+</script>
+</body>
+</html>

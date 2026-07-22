@@ -1,0 +1,138 @@
+services:
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes
+    restart: unless-stopped
+    profiles: [core]
+    # ── Run mode ────────────────────────────────────────────────────────────
+    # hermes-agent:latest exposes NO HTTP agent API. Its long-running daemon is
+    # the messaging gateway (Telegram/Discord/… + cron + kanban dispatch); its
+    # only HTTP server is the config `dashboard` (deliberately NOT exposed — it
+    # is a secrets-management UI). So Hermes runs here as the CLI/gateway agent
+    # runtime. The command first reconciles config.yaml (init-config.sh merges
+    # our committed override fragment into $HERMES_HOME/config.yaml, which the
+    # image seeds/migrates itself), then execs the gateway daemon.
+    # Newer hermes-agent:latest builds auto-manage the gateway via s6 +
+    # hermes_cli.container_boot (persisted per-profile "running" state on the
+    # volume) — exec'ing a manual "hermes gateway run"/"restart" here now
+    # conflicts with it ("A gateway is already running under s6") and
+    # crash-loops the container (verified live on local-stack, the deployed
+    # instance this repo mirrors). Only run the config-merge step; let the
+    # image's own s6 supervision own the gateway process.
+    # openai-shim.py: Open WebUI's OPENAI_API_BASE_URLS already lists
+    # http://hermes:8642/v1 as a second backend, but nothing ever listened
+    # there (Hermes has no HTTP agent API — see above). This backgrounds a
+    # thin stdlib-only shim that shells out to the real `hermes -z ... --cli`
+    # per request and wraps it as an OpenAI chat.completion(.chunk) — proving
+    # a real Open WebUI -> Hermes chat round-trip instead of leaving the
+    # second connection dead. Internal-network-only (aef2_backend), not
+    # published to the host.
+    command: ["sh", "-c", "sh /hermes-init.sh; python3 /hermes-openai-shim.py & sleep infinity"]
+    volumes:
+      # HERMES_HOME is /opt/data (NOT /root/.hermes) — this is where the image
+      # actually persists config, sessions, kanban, memory, skills.
+      - hermes_data:/opt/data
+      # Committed config override fragment + boot reconciler (both secret-free).
+      - ../../../agents/hermes/hermes-config.yaml:/hermes-config.yaml:ro
+      - ../../../agents/hermes/init-config.sh:/hermes-init.sh:ro
+      # #29: one-shot Telegram boot-race self-heal, invoked from the
+      # healthcheck below (never gates health — see the healthcheck comment).
+      - ../../../agents/hermes/telegram-selfheal.sh:/telegram-selfheal.sh:ro
+      # OpenAI-compat shim for Open WebUI's second backend (see command comment above).
+      - ../../../agents/hermes/openai-shim.py:/hermes-openai-shim.py:ro
+      # Persona / system prompt: the image loads $HERMES_HOME/SOUL.md fresh each turn.
+      - ../../../agents/hermes/SOUL.md:/opt/data/SOUL.md:ro
+      # Stack-specific skills, registered via skills.external_dirs in the fragment.
+      - ../../../agents/hermes/skills:/opt/data/custom-skills:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      HERMES_NAME: ${HERMES_NAME:-Hermes}
+      HERMES_HOME: /opt/data
+      GATEWAY_ALLOW_ALL_USERS: "true"
+      # #27: this was missing entirely — hermes expects TELEGRAM_BOT_TOKEN
+      # verbatim (confirmed via `hermes config check`), and no Telegram
+      # credential was ever wired through regardless of what .env held.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USERS: ${TELEGRAM_ID}
+
+      # ── LLM — routes through LiteLLM (never direct to Ollama) ──────────────
+      # The model/provider wiring lives in config.yaml (via hermes-config.yaml).
+      # LITELLM_API_KEY is the sk virtual key consumed at runtime by the
+      # `litellm` provider's key_env mapping — do NOT use the LiteLLM master key.
+      LITELLM_BASE_URL: http://litellm:${LITELLM_PORT:-4000}/v1
+      LITELLM_API_KEY: ${LITELLM_API_KEY}
+      HERMES_DEFAULT_MODEL: ${HERMES_DEFAULT_MODEL:-openai/morpheus-main-model}
+
+      # ── Persistent memory ──────────────────────────────────────────────────
+      # HONEST LIMITATION: hermes-agent v0.16 has NO Qdrant/SurrealDB memory
+      # backend (its plugin set is honcho/mem0/openviking/hindsight/holographic/
+      # retaindb/byterover/supermemory — none is Qdrant/Surreal). Hermes memory
+      # is wired to the LOCAL `holographic` provider (SQLite fact store at
+      # $HERMES_HOME/memory_store.db on the hermes_data volume) via
+      # hermes-config.yaml. The env vars below are consumed by OTHER stack
+      # components (mcp-postgres/mcp-surrealdb, etc.), NOT by the Hermes image —
+      # they are inert here and kept only so a future Qdrant/Surreal provider
+      # (or the postgres/surreal MCP tools) can pick them up without editing.
+      QDRANT_URL: http://qdrant:6333            # inert for Hermes v0.16
+      QDRANT_API_KEY: ${QDRANT_API_KEY}         # inert for Hermes v0.16
+      SURREALDB_URL: http://surrealdb:${SURREALDB_PORT:-8000}  # inert for Hermes v0.16
+      SURREALDB_USER: ${SURREALDB_USER}
+      SURREALDB_PASS: ${SURREALDB_PASS}
+      SURREALDB_NS: ${HERMES_SURREAL_NS:-aef}
+      SURREALDB_DB: ${HERMES_SURREAL_DB:-hermes}
+
+      # ── Web search (LIVE) ──────────────────────────────────────────────────
+      # Consumed by the bundled web-searxng plugin; selected via web.backend in
+      # hermes-config.yaml. SearXNG must expose the JSON format (it does).
+      SEARXNG_URL: http://searxng:8080
+      # Registrar (governance board) - consumed by the board skills
+      REGISTRAR_URL: http://registrar:8090
+      REGISTRAR_ADMIN_TOKEN: ${REGISTRAR_ADMIN_TOKEN:-}
+      # Telemetry
+      HERMES_TELEMETRY: "false"
+    depends_on:
+      litellm:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      surrealdb:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Agents
+      homepage.name: Hermes
+      homepage.icon: https://nousresearch.com/favicon.ico
+      homepage.description: Agent runtime (CLI + gateway) — routes to LiteLLM; skills + memory. No web UI.
+    networks:
+      - backend-net
+      - database-net
+    # ── Healthcheck ───────────────────────────────────────────────────────────
+    # Honest liveness of the REAL workload: `gateway status` scans for the live
+    # gateway daemon process (exit 0 only when it is actually running). Not a
+    # self-ping — there is no HTTP endpoint on this container. HOME must point at
+    # HERMES_HOME because the compose healthcheck runs as root without s6's
+    # with-contenv env repopulation.
+    healthcheck:
+      # Runs the #29 self-heal as a background side effect on every check
+      # (it no-ops after its first real attempt via its own marker file, and
+      # no-ops immediately if the detected condition isn't present) — but
+      # PASS/FAIL is still driven ONLY by `hermes gateway status`. The
+      # Telegram platform adapter is one optional messaging surface; a bug in
+      # it must never fail the whole gateway's health or block other
+      # services' `depends_on: condition: service_healthy`.
+      test: ["CMD", "sh", "-c", "sh /telegram-selfheal.sh >/dev/null 2>&1 & HOME=/opt/data hermes gateway status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  hermes_data:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

@@ -1,0 +1,44 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: surrealdb
+    restart: unless-stopped
+    profiles: [core]
+    user: root
+    ports:
+      - "${SURREALDB_PORT:-8000}:8000"
+    volumes:
+      - surrealdb_data:/data
+    command: >
+      start
+      --log info
+      --user ${SURREALDB_USER}
+      --pass ${SURREALDB_PASS}
+      rocksdb:/data/surreal.db
+    labels:
+      homepage.group: Databases
+      homepage.name: SurrealDB
+      homepage.icon: https://surrealdb.com/favicon.ico
+      homepage.href: http://localhost:${SURREALDB_PORT:-8000}
+      homepage.description: Multi-model — relational · document · graph · vector · time-series
+    networks:
+      - database-net
+      - backend-net
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  surrealdb_data:
+    external: true
+
+networks:
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

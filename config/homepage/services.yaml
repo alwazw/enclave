@@ -1,0 +1,170 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Homepage Dashboard — Services
+# Static service definitions (Docker label auto-discovery supplements these)
+# Ports reference env vars via HOMEPAGE_VAR_* injected in homepage.yml
+# ─────────────────────────────────────────────────────────────────────────────
+
+- AI & Chat:
+    - Open WebUI:
+        icon: https://docs.openwebui.com/img/favicon.png
+        href: "http://localhost:{{HOMEPAGE_VAR_OPENWEBUI_PORT}}"
+        description: "Chat UI — all local models via LiteLLM gateway"
+        server: my-docker
+        container: open_webui
+        widget:
+          type: customapi
+          # #11: container listens internally on 8080 -- 3000 is only the
+          # host-published port (open-webui.yml: "${OPENWEBUI_PORT:-3000}:8080").
+          # Also needs a real API key now that ENABLE_API_KEYS is on -- unauthenticated
+          # requests get 401.
+          url: "http://open-webui:8080/api/v1/models"
+          method: GET
+          headers:
+            Authorization: "Bearer {{HOMEPAGE_VAR_OPENWEBUI_API_KEY}}"
+          mappings:
+            - field: data
+              label: Models
+              format: size
+
+    - Hermes Agent:
+        icon: https://avatars.githubusercontent.com/u/139895599
+        href: "http://localhost:{{HOMEPAGE_VAR_HERMES_PORT}}"
+        description: "Core AI agent — MCPs, skills, memory, tool use"
+        server: my-docker
+        container: hermes
+
+    - AnythingLLM:
+        icon: https://anythingllm.com/favicon.ico
+        href: "http://localhost:3200"
+        description: "Multi-user RAG — upload docs, build knowledge bases"
+        server: my-docker
+        container: anythingllm
+
+    - LiteLLM Proxy:
+        icon: https://docs.litellm.ai/img/favicon.ico
+        href: "http://localhost:4000/ui"
+        description: "LLM gateway — model routing, cost tracking, API keys"
+        server: my-docker
+        container: litellm
+
+- Automation:
+    - n8n:
+        icon: n8n.png
+        href: "http://localhost:{{HOMEPAGE_VAR_N8N_PORT}}"
+        description: "Workflow automation — scheduling, APIs, integrations"
+        server: my-docker
+        container: n8n
+
+    - Flowise:
+        icon: https://flowiseai.com/favicon.ico
+        href: "http://localhost:{{HOMEPAGE_VAR_FLOWISE_PORT}}"
+        description: "LLM chain builder — RAG pipelines, agent flows"
+        server: my-docker
+        container: flowise
+
+    - Mem0:
+        icon: https://mem0.ai/favicon.ico
+        href: "http://localhost:8888"
+        description: "Cross-session memory layer — Qdrant + Postgres backend"
+        server: my-docker
+        container: mem0
+
+- Knowledge:
+    - TriliumNext:
+        icon: https://github.com/TriliumNext/Notes/raw/main/images/app-icons/png/icon_64x64.png
+        href: "http://localhost:{{HOMEPAGE_VAR_TRILIUM_PORT}}"
+        description: "Hierarchical second brain — notes, tasks, code snippets"
+        server: my-docker
+        container: trilium
+
+    - AFFiNE:
+        icon: https://affine.pro/favicon.ico
+        href: "http://localhost:{{HOMEPAGE_VAR_AFFINE_PORT}}"
+        description: "Notion + Miro — docs, whiteboards, databases"
+        server: my-docker
+        container: affine
+
+    - SearXNG:
+        icon: searxng.png
+        href: "http://localhost:8081"
+        description: "Private meta-search — no tracking, local-only"
+        server: my-docker
+        container: searxng
+
+    - Docling:
+        icon: https://ds4sd.github.io/docling/assets/docling_processing.png
+        href: "http://localhost:5001"
+        description: "Document intelligence — PDF/DOCX to Markdown"
+        server: my-docker
+        container: docling
+
+- Databases:
+    - SurrealDB:
+        icon: https://surrealdb.com/favicon.ico
+        href: "http://localhost:8000"
+        description: "Multi-model DB — SQL, graph, document, vector, KV"
+        server: my-docker
+        container: surrealdb
+
+    - Qdrant:
+        icon: https://qdrant.tech/favicon.ico
+        href: "http://localhost:6333/dashboard"
+        description: "Vector database — embeddings, semantic search, RAG"
+        server: my-docker
+        container: qdrant
+        widget:
+          type: customapi
+          url: "http://qdrant:6333/collections"
+          method: GET
+          mappings:
+            - field: result.collections
+              label: Collections
+              format: size
+
+    - CloudBeaver:
+        icon: https://dbeaver.io/img/cloudbeaver-logo.png
+        href: "http://localhost:{{HOMEPAGE_VAR_CLOUDBEAVER_PORT}}"
+        description: "Browser DB manager — visual SQL, schema explorer"
+        server: my-docker
+        container: cloudbeaver
+
+    - Ollama:
+        icon: ollama.png
+        href: "http://localhost:11434"
+        description: "Local model runner — GPU/CPU inference engine"
+        server: my-docker
+        container: ollama
+
+- Observability:
+    - Langfuse:
+        icon: https://langfuse.com/favicon.ico
+        href: "http://localhost:{{HOMEPAGE_VAR_LANGFUSE_PORT}}"
+        description: "LLM tracing — cost, latency, quality per model/agent"
+        server: my-docker
+        container: langfuse
+
+    - Dozzle:
+        icon: https://dozzle.dev/favicon.ico
+        href: "http://localhost:{{HOMEPAGE_VAR_DOZZLE_PORT}}"
+        description: "Container log streaming — real-time, searchable"
+        server: my-docker
+        container: dozzle
+
+- Dev Tools:
+    - Portainer:
+        icon: portainer.png
+        href: "http://localhost:{{HOMEPAGE_VAR_PORTAINER_PORT}}"
+        description: "Docker management — deploy, inspect, shell access"
+        server: my-docker
+        container: portainer
+        widget:
+          type: portainer
+          url: "http://portainer:9000"
+          env: 1
+
+    - MCPO Bridge:
+        icon: https://avatars.githubusercontent.com/u/182288589
+        href: "http://localhost:8080/docs"
+        description: "MCP → OpenAPI bridge — 7 MCP servers as REST"
+        server: my-docker
+        container: mcpo

@@ -1,0 +1,50 @@
+services:
+  # ⚠ DEFERRED (2026-07-16, ruled by CEO, consistent with prior Engineering/
+  # DevOps/Product analysis in memory/decisions.md): `openinterpreter/
+  # open-interpreter:latest` does not exist on Docker Hub — confirmed via
+  # `docker compose pull` returning "pull access denied ... repository does
+  # not exist". No official image was ever published under this name, and no
+  # vetted community alternative exists. Product already flagged this
+  # service as low journey-priority. Left DISABLED (profiles: [disabled],
+  # never started by any real `--profile` flag, matching the mcp-surrealdb/
+  # mcp-docker convention below) rather than pulling a fabricated tag or
+  # building/maintaining an unofficial custom image unilaterally. Revisit
+  # only if an official image ships, or with an explicit Chairman go-ahead
+  # to build and maintain a custom image from source.
+  open-interpreter:
+    image: openinterpreter/open-interpreter:latest
+    container_name: open_interpreter
+    restart: unless-stopped
+    profiles: [disabled]
+    ports:
+      - "${OI_PORT:-8143}:8143"
+    volumes:
+      - oi_workspace:/workspace
+    environment:
+      OPENAI_BASE_URL: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      OPENAI_API_KEY: ${LITELLM_API_KEY}
+      INTERPRETER_DEFAULT_MODEL: ${OI_MODEL:-qwen2.5-coder:32b}
+      INTERPRETER_SAFE_MODE: "off"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8143"
+    labels:
+      homepage.group: AI Agents
+      homepage.name: Open Interpreter
+      homepage.icon: https://openinterpreter.com/favicon.ico
+      homepage.href: "http://localhost:${OI_PORT:-8143}"
+      homepage.description: Sandboxed code execution — Hermes delegates all code tasks here
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8143/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  oi_workspace:
+    external: true
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

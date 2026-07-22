@@ -1,0 +1,11 @@
+# Optional NVIDIA GPU acceleration for Ollama (bonus tier, never required).
+# Usage: docker compose -f local-stack.yml -f compose/ai-ml/ollama/ollama.gpu.yml --profile core up -d
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

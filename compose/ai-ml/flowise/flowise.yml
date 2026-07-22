@@ -1,0 +1,62 @@
+services:
+  flowise:
+    image: flowiseai/flowise:latest
+    container_name: flowise
+    restart: unless-stopped
+    profiles: [automation]
+    ports:
+      - "${FLOWISE_PORT:-3100}:3000"
+    volumes:
+      - flowise_data:/root/.flowise
+    environment:
+      PORT: "3000"
+      # #8: FLOWISE_USERNAME/FLOWISE_PASSWORD as container env vars did NOTHING —
+      # v3.1.2 dropped env-based basic auth for a workspace/organization
+      # multi-tenant model (confirmed: grepped the shipped dist/, zero
+      # references to either var). Real bootstrap is
+      # scripts/init-flowise-admin.sh (POST /api/v1/account/register),
+      # using FLOWISE_ADMIN_EMAIL + the same FLOWISE_PASSWORD as the
+      # credential value.
+      FLOWISE_SECRETKEY_OVERWRITE: ${FLOWISE_SECRET_KEY}
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: ${POSTGRES_HOST:-postgres}
+      DATABASE_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_NAME: ${POSTGRES_DB_FLOWISE:-flowise}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      # All LLM calls through LiteLLM
+      OPENAI_API_KEY: ${LITELLM_API_KEY}
+      OPENAI_BASE_URL: "http://litellm:${LITELLM_PORT:-4000}/v1"
+      # Ollama direct for local model picker
+      OLLAMA_BASE_URL: "http://ollama:${OLLAMA_PORT:-11434}"
+      LANGCHAIN_TRACING_V2: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Interfaces
+      homepage.name: Flowise
+      homepage.icon: https://flowiseai.com/favicon.ico
+      homepage.href: "http://localhost:${FLOWISE_PORT:-3100}"
+      homepage.description: LangChain/LlamaIndex visual builder — RAG chains, agents, chatbots
+    networks: [frontend-net, backend-net, database-net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  flowise_data:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

@@ -1,0 +1,86 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open_webui
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${OPENWEBUI_PORT:-3000}:8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      # LiteLLM as primary OpenAI-compatible backend (Hermes gateway doesn't expose API)
+      OPENAI_API_BASE_URL: http://litellm:${LITELLM_PORT:-4000}/v1
+      OPENAI_API_KEY: ${LITELLM_API_KEY}
+      # Also expose Hermes for agent access (pipe-separated)
+      OPENAI_API_BASE_URLS: "http://litellm:${LITELLM_PORT:-4000}/v1;http://hermes:${HERMES_PORT:-8642}/v1"
+      # MCP tools via MCPO bridge
+      TOOL_SERVER_URL: http://mcpo:${MCPO_PORT:-8080}
+      TOOL_SERVER_AUTH: Bearer ${MCPO_API_KEY}
+      # RAG — Qdrant primary, embed via Ollama
+      VECTOR_DB: qdrant
+      QDRANT_URI: http://qdrant:${QDRANT_PORT_HTTP:-6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      RAG_EMBEDDING_ENGINE: ollama
+      RAG_EMBEDDING_MODEL: ${HERMES_EMBEDDING_MODEL:-nomic-embed-text:latest}
+      OLLAMA_BASE_URL: http://ollama:${OLLAMA_PORT:-11434}
+      # Web search — SearXNG
+      ENABLE_RAG_WEB_SEARCH: "true"
+      RAG_WEB_SEARCH_ENGINE: searxng
+      SEARXNG_QUERY_URL: "http://searxng:8080/search?q=<query>&format=json"
+      # Auth / security
+      WEBUI_SECRET_KEY: ${OPENWEBUI_SECRET}
+      ENABLE_SIGNUP: ${OPENWEBUI_ENABLE_SIGNUP:-false}
+      # #11: off by default (Open WebUI's own default) — needed for the Homepage
+      # dashboard widget (config/homepage/services.yaml) to authenticate its
+      # GET /api/v1/models call with a per-instance API key from the DB.
+      ENABLE_API_KEYS: "true"
+      # Security hardening (2026-07-16): was "admin" — harmless only because
+      # ENABLE_SIGNUP=false blocks every signup after the first, but a footgun
+      # if signup is ever re-enabled (every self-registered user would get
+      # admin). "pending" requires explicit admin approval for new accounts.
+      DEFAULT_USER_ROLE: pending
+      # Was unset (defaults to "*" — Open WebUI's own startup log warns
+      # "NOT RECOMMENDED FOR PRODUCTION DEPLOYMENTS"). Scoped to this LAN
+      # stack's actual origins instead. Delimiter is ";" (confirmed in
+      # open_webui/config.py: `os.getenv('CORS_ALLOW_ORIGIN', '*').split(';')`
+      # — NOT ",", which the code would silently treat as one non-matching
+      # origin string).
+      CORS_ALLOW_ORIGIN: "http://localhost:${OPENWEBUI_PORT:-3000}${HOST_IP:+;http://${HOST_IP}:${OPENWEBUI_PORT:-3000}}"
+      # Redis session store
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}"
+    depends_on:
+      litellm:
+        condition: service_healthy
+      mcpo:
+        condition: service_healthy
+    labels:
+      homepage.group: AI Interfaces
+      homepage.name: Open WebUI
+      homepage.icon: openwebui.png
+      homepage.href: http://localhost:${OPENWEBUI_PORT:-3000}
+      homepage.description: Primary chat UI — Hermes · RAG · MCP tools · web search
+    networks:
+      - frontend-net
+      - backend-net
+      - database-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  open_webui_data:
+    external: true
+
+networks:
+  frontend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_frontend
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

@@ -1,0 +1,77 @@
+services:
+  # ═══════════════════════════════════════════════════════════════════════
+  #  ⚠ AUTH FINDING (2026-07-13, verified empirically — bigger than a naming
+  #  drift): `chromadb/chroma:latest` currently resolves to Chroma v1.4.4,
+  #  the Rust rewrite. It has ELIMINATED server-side auth entirely — there
+  #  is NO CHROMA_AUTH_*, NO CHROMA_AUTHN_*, no token/API-key gate of any
+  #  kind in this image. Verified 3 ways: (1) `strings` on the extracted
+  #  `/usr/local/bin/chroma` binary — zero CHROMA_AUTH*/CHROMA_AUTHN*
+  #  matches anywhere. (2) chroma-core/chroma's own `rust/frontend/src/
+  #  config.rs` `FrontendConfig` struct has no auth field at all. (3) Ran
+  #  the real image standalone with ZERO auth env vars set — server started
+  #  clean and served requests with no complaint; setting the OLD
+  #  CHROMA_AUTH_CREDENTIALS/CHROMA_AUTH_PROVIDER vars (as this file used
+  #  to) is silently ignored, not silently rejected — worse than useless,
+  #  it gives a false impression that a credential is enforced when it is
+  #  not. (Auth/API-key gating now appears to be a Chroma-Cloud-only
+  #  feature — the "InvalidApiKey"/Basic-auth strings in the binary belong
+  #  to the `chroma login`/Cloud-profile CLI commands, not the local `run`
+  #  server.) The old vars are REMOVED below rather than renamed to
+  #  CHROMA_AUTHN_* — that rename would ALSO do nothing on this image.
+  #  Compensating control until upstream restores OSS server auth (or this
+  #  pin is deliberately downgraded to a pre-Rust version that had it):
+  #  treat this service as unauthenticated by design — don't expose
+  #  CHROMADB_PORT beyond the LAN-firewall scope already recommended
+  #  elsewhere in this plan for `extras`/`tools`. Flagging for
+  #  CTO/Security, consistent with their existing LAN-exposure findings.
+  # ═══════════════════════════════════════════════════════════════════════
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    restart: unless-stopped
+    profiles: [extras]
+    ports:
+      - "${CHROMADB_PORT:-8200}:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+      # CHROMA_AUTH_* removed — this image (v1.4.4) reads none of them; see
+      # header comment. CHROMADB_AUTH_TOKEN stays defined in .env.example
+      # for documentation/future-pin use but is NOT consumed here anymore.
+    labels:
+      homepage.group: Vector Databases
+      homepage.name: ChromaDB
+      homepage.icon: https://www.trychroma.com/favicon.ico
+      homepage.href: http://localhost:${CHROMADB_PORT:-8200}
+      homepage.description: Dev/experimental vector store — rapid RAG prototyping
+    networks:
+      - database-net
+      - backend-net
+    healthcheck:
+      # v1.4.4 confirmed: GET /api/v1/heartbeat -> 410 Gone (v1 API removed).
+      # GET /api/v2/heartbeat -> 200 (verified against a standalone run of
+      # this exact image). Old /api/v1 path would have flapped unhealthy
+      # forever. ALSO confirmed: this image's base is Debian trixie-slim
+      # with NO curl/wget/python3/nc (checked directly) — only `perl` is
+      # present, matching this repo's existing convention for tool-less
+      # images (qdrant/ollama). Perl one-liner tested directly inside a
+      # running instance of this exact image: exit 0.
+      test: ["CMD-SHELL", "perl -MIO::Socket::INET -e 'my $$s=IO::Socket::INET->new(PeerHost=>\"localhost\",PeerPort=>8000,Proto=>\"tcp\") or exit 1; print $$s \"GET /api/v2/heartbeat HTTP/1.0\r\nHost: localhost\r\n\r\n\"; while(<$$s>){exit 0 if /200 OK/} exit 1'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  chromadb_data:
+    external: true
+
+networks:
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend

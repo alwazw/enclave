@@ -1,0 +1,143 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LiteLLM Gateway Configuration
+# All AI services in the stack route through this single proxy.
+# Models are grouped by capability. Ollama handles local inference;
+# external providers are opt-in via .env API keys.
+# ─────────────────────────────────────────────────────────────────────────────
+
+general_settings:
+  master_key: "${LITELLM_MASTER_KEY}"
+  database_url: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB_LITELLM:-litellm}"
+  store_model_in_db: true
+
+litellm_settings:
+  telemetry: false
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  langfuse_public_key: "${LANGFUSE_INIT_PROJECT_PUBLIC_KEY}"
+  langfuse_secret_key: "${LANGFUSE_INIT_PROJECT_SECRET_KEY}"
+  langfuse_host: "http://langfuse:3000"
+  drop_params: true
+  set_verbose: false
+  num_retries: 3
+  request_timeout: 120
+
+# ── Model Definitions ─────────────────────────────────────────────────────────
+model_list:
+
+  # ── Local Models (Ollama) ────────────────────────────────────────────────────
+  - model_name: llama3.2:latest
+    litellm_params:
+      model: ollama/llama3.2:latest
+      api_base: "http://ollama:11434"
+    model_info:
+      id: llama3.2-latest
+      mode: chat
+      description: "Meta Llama 3.2 — general purpose, fast, 3B"
+
+  - model_name: llama3.1:8b
+    litellm_params:
+      model: ollama/llama3.1:8b
+      api_base: "http://ollama:11434"
+    model_info:
+      id: llama3.1-8b
+      mode: chat
+      description: "Meta Llama 3.1 8B — solid reasoning, fits in 8GB VRAM"
+
+  - model_name: llama3.1:70b
+    litellm_params:
+      model: ollama/llama3.1:70b
+      api_base: "http://ollama:11434"
+    model_info:
+      id: llama3.1-70b
+      mode: chat
+      description: "Meta Llama 3.1 70B — high capability, requires 40GB+ VRAM"
+
+  - model_name: mistral:latest
+    litellm_params:
+      model: ollama/mistral:latest
+      api_base: "http://ollama:11434"
+    model_info:
+      id: mistral-latest
+      mode: chat
+      description: "Mistral 7B — fast, instruction-tuned"
+
+  - model_name: qwen2.5-coder:7b
+    litellm_params:
+      model: ollama/qwen2.5-coder:7b
+      api_base: "http://ollama:11434"
+    model_info:
+      id: qwen2.5-coder-7b
+      mode: chat
+      description: "Qwen 2.5 Coder 7B — code generation, SQL, scripting"
+
+  - model_name: deepseek-r1:8b
+    litellm_params:
+      model: ollama/deepseek-r1:8b
+      api_base: "http://ollama:11434"
+    model_info:
+      id: deepseek-r1-8b
+      mode: chat
+      description: "DeepSeek R1 8B — chain-of-thought reasoning"
+
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: "http://ollama:11434"
+    model_info:
+      id: nomic-embed-text
+      mode: embedding
+      description: "Nomic Embed Text — 768-dim embeddings, fast, local"
+
+  - model_name: mxbai-embed-large
+    litellm_params:
+      model: ollama/mxbai-embed-large
+      api_base: "http://ollama:11434"
+    model_info:
+      id: mxbai-embed-large
+      mode: embedding
+      description: "MXBai Embed Large — 1024-dim, high quality embeddings"
+
+  # ── External Providers (opt-in, set API keys in .env) ─────────────────────
+  - model_name: gpt-4o
+    litellm_params:
+      model: gpt-4o
+      api_key: "${OPENAI_API_KEY}"
+    model_info:
+      id: gpt-4o
+      mode: chat
+      description: "OpenAI GPT-4o — when local models are insufficient"
+
+  - model_name: claude-3-5-sonnet
+    litellm_params:
+      model: claude-3-5-sonnet-20241022
+      api_key: "${ANTHROPIC_API_KEY}"
+    model_info:
+      id: claude-3-5-sonnet
+      mode: chat
+      description: "Anthropic Claude 3.5 Sonnet — strong coding + analysis"
+
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash-exp
+      api_key: "${GOOGLE_API_KEY}"
+    model_info:
+      id: gemini-flash
+      mode: chat
+      description: "Google Gemini 2.0 Flash — fast, long context"
+
+# ── Router Config ─────────────────────────────────────────────────────────────
+router_settings:
+  routing_strategy: usage-based-routing
+  model_group_alias:
+    # Semantic aliases — services reference these, not specific models
+    "default": ["llama3.2:latest", "mistral:latest"]
+    "smart": ["llama3.1:8b", "deepseek-r1:8b"]
+    "powerful": ["llama3.1:70b", "gpt-4o", "claude-3-5-sonnet"]
+    "coder": ["qwen2.5-coder:7b", "gpt-4o"]
+    "embeddings": ["nomic-embed-text", "mxbai-embed-large"]
+  fallbacks:
+    - {"llama3.1:70b": ["gpt-4o"]}
+    - {"gpt-4o": ["claude-3-5-sonnet"]}
+  num_retries: 2
+  retry_after: 5

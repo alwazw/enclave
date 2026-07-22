@@ -1,0 +1,63 @@
+# ════════════════════════════════════════════════════════════════════════
+#  AEF2 — LiteLLM Router Config: AIR-GAP MODE
+#
+#  Swapped in via scripts/set-airgap.sh (relinks config.yml -> this file,
+#  then recreates litellm). Every model_name the rest of the stack calls
+#  (openai/morpheus-main-model, -utility-model, -embedding-model, and their
+#  typo aliases) resolves ONLY to local Ollama deployments. There is no
+#  cloud model_name anywhere in this file and no `fallbacks` entry that
+#  could reach one — this is an architectural guarantee of zero cloud
+#  calls, not "cloud keys happen to be unset". Safe to run with every
+#  cloud API key blank/removed from .env.
+#
+#  To leave air-gap mode: scripts/set-airgap.sh off (relinks config.yml back
+#  to litellm.yml, the normal multi-provider cascade, then recreates litellm).
+# ════════════════════════════════════════════════════════════════════════
+model_list:
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: ollama/dolphin3, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+  - model_name: openai/morpheus-main-model
+    litellm_params: { model: ollama/deepseek-r1:8b, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+
+  - model_name: openai/morpheus-utility-model
+    litellm_params: { model: ollama/dolphin3, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+  # Backward-compat: historic 'utitlity' typo alias -> same as utility
+  - model_name: openai/morpheus-utitlity-model
+    litellm_params: { model: ollama/dolphin3, api_base: http://ollama:11434 }
+    rpm: 1000
+    tpm: 500000
+
+  # ─── EMBEDDING (local, private) + typo alias ───
+  - model_name: openai/morpheus-embedding-model
+    litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
+  - model_name: openai/morpheus-embeding-model
+    litellm_params: { model: ollama/nomic-embed-text, api_base: http://ollama:11434 }
+    rpm: 60
+    tpm: 500000
+
+router_settings:
+  routing_strategy: usage-based-routing
+  num_retries: 2
+  cooldown_time: 30
+  allowed_fails: 1
+  # No `fallbacks:` block at all: openai/morpheus-main-model and
+  # openai/morpheus-utility-model only have local deployments in model_list
+  # above, so there is nothing to fall back past — and nothing cloud-side
+  # for a misconfigured fallback to accidentally reach.
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  # Observability: emit a Langfuse trace for every call (§ launch-gate tracing).
+  # Active only when LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST are present in the env;
+  # absent keys => callback is a harmless no-op (no hard dependency).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]

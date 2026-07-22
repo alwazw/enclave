@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    labels:
+      homepage.group: Databases
+      homepage.name: PostgreSQL
+      homepage.icon: postgres.png
+      homepage.href: http://localhost:${CLOUDBEAVER_PORT:-8978}
+      homepage.description: Relational backbone — n8n · AFFiNE · Flowise · Langfuse
+    networks:
+      - database-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    external: true
+
+networks:
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

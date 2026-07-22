@@ -1,0 +1,42 @@
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    profiles: [core]
+    ports:
+      # Host 8081 (LAN) -> container 8080. Granian binds 8080 (image default);
+      # hermes/open-webui reach it internally as searxng:8080.
+      - "${SEARXNG_PORT:-8081}:8080"
+    volumes:
+      - ../../../config/searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_PORT: 8080
+      SEARXNG_BASE_URL: "http://${HOST_IP}:8081/"
+      SEARXNG_SECRET_KEY: ${SEARXNG_SECRET}
+      SEARXNG_REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}/1"
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    depends_on:
+      redis:
+        condition: service_healthy
+    labels:
+      homepage.group: Tools
+      homepage.name: SearXNG
+      homepage.icon: https://searxng.org/favicon.ico
+      homepage.href: "http://localhost:8081"
+      homepage.description: Private meta-search — Hermes web research backend
+    networks: [backend-net, database-net]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+networks:
+  backend-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_backend
+  database-net:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:-aef2}_database

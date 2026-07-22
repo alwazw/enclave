@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Homepage Dashboard — Settings
+# Auto-discovery via Docker socket + label-based service registration
+# ─────────────────────────────────────────────────────────────────────────────
+
+title: AEF2 Local AI Stack
+description: "Private, local-first AI infrastructure"
+startUrl: http://localhost:3030
+favicon: https://raw.githubusercontent.com/gethomepage/homepage/main/public/favicon.ico
+
+background:
+  image: https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&q=80
+  blur: sm
+  saturate: 50
+  brightness: 50
+  opacity: 50
+
+theme: dark
+color: slate
+
+headerStyle: boxed
+layout:
+  AI & Chat:
+    style: row
+    columns: 4
+  Automation:
+    style: row
+    columns: 3
+  Knowledge:
+    style: row
+    columns: 4
+  Databases:
+    style: row
+    columns: 4
+  Observability:
+    style: row
+    columns: 3
+  Dev Tools:
+    style: row
+    columns: 4
+
+quicklaunch:
+  searchDescriptions: true
+  hideInternetSearch: false
+  showSearchSuggestions: false
+
+useEqualHeights: true
+cardBlur: sm
+
+# Five-column layout, groups sorted by workflow importance
+fiveColumns: false
+
+logpath: /app/config/logs/
