@@ -71,9 +71,8 @@ Last updated: 2026-07-22 (in-sandbox core bring-up, T-0009).
   are ghcr-only and blocked (no `openwebui/open-webui` on Docker Hub).
 - **mcp-servers** (`node:22-alpine`, runtime `npm i -g`) fail with `SELF_SIGNED_CERT_IN_CHAIN` — no CA
   in the image. Fix = mount CA + `NODE_EXTRA_CA_CERTS` (compose change; flagged, not applied).
-- **searxng** crash-loops on `granian` with `Address family not supported (os error 97)` — sandbox has
-  **no IPv6**. Fix = env `GRANIAN_HOST=0.0.0.0` (applied via a throwaway compose override this session;
-  candidate real fix = add `GRANIAN_HOST=0.0.0.0` to searxng.yml env — helps any no-IPv6 host).
+- **searxng** crash-loops on `granian` with `Address family not supported (os error 97)` on **no-IPv6**
+  hosts. Fixed: `GRANIAN_HOST=0.0.0.0` is now committed to `searxng.yml` env (helps any no-IPv6 host).
 
 ## Backup state
 - None taken this session. Reminder: a backup task is only done when a RESTORE is proven (deep-validate
@@ -91,6 +90,6 @@ Last updated: 2026-07-22 (in-sandbox core bring-up, T-0009).
   healthy. Proved: containerized Registrar 409 (docker run), gate on running compose stack (409), and ux
   screenshot gate end-to-end (real PNGs on `registrar_board`). Blocked & flagged: mcp-servers (npm CA),
   ghcr open-webui/mcpo/homepage, LLM floor (registry.ollama.ai 403; no external keys). Proposed repo
-  fixes (NOT committed): (1) searxng `GRANIAN_HOST=0.0.0.0`; (2) mcp-servers CA-mount +
-  `NODE_EXTRA_CA_CERTS`; (3) optional build-arg CA hook in registrar/ux-validate Dockerfiles for
-  proxy-MITM environments. Left T-0009 in `validating` for QA.
+  repo fixes: (1) searxng `GRANIAN_HOST=0.0.0.0` — **committed** to searxng.yml; still proposed
+  (NOT committed): (2) mcp-servers CA-mount + `NODE_EXTRA_CA_CERTS`; (3) optional build-arg CA hook in
+  registrar/ux-validate Dockerfiles for proxy-MITM environments. T-0009 closed `done` (Dispatch re-verified).

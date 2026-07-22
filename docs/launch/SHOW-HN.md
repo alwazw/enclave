@@ -32,7 +32,7 @@ _Recommendation: #1 — concrete, states the mechanism, signals local/self-hosta
 > at all in air-gap mode), and the LLM path degrades through free tiers down to a
 > local CPU floor — no per-token cloud required. MIT licensed.
 >
-> Reproduce the refusal yourself in one command: `<demo trigger — from W3>`.
+> Reproduce the refusal yourself from the repo root in one command: `make demo`.
 >
 > I want to be honest about what it does **not** do — it proves evidence *exists
 > and is real*, not that it's *meaningful*; it governs agents, not a malicious
@@ -40,7 +40,7 @@ _Recommendation: #1 — concrete, states the mechanism, signals local/self-hosta
 > [docs/GOVERNANCE.md](../GOVERNANCE.md) (read the "What this does NOT defend
 > against" section — it's the honest part).
 >
-> Repo: <repo URL>. Happy to answer anything.
+> Repo: https://github.com/alwazw/enclave. Happy to answer anything.
 
 ## What to link
 

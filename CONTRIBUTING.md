@@ -58,5 +58,6 @@ description tight so the router picks it only when it should.
 ## Reporting security issues
 
 Please **do not** open a public issue for a vulnerability. See
-[SECURITY.md](SECURITY.md) if present, or contact the maintainers privately via
-GitHub's report feature. Disclosure lands after the fix, not before.
+[SECURITY.md](SECURITY.md) — report privately via GitHub's **Security → Report a
+vulnerability** (private vulnerability reporting). Disclosure lands after the fix,
+not before.
